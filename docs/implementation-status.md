@@ -9,12 +9,13 @@ Initial hackathon slice, 2026-10-03.
 - Local HTTP test API, real 429 enforcement, observe/manual/automatic modes, expiring scoped blocks and audit trail.
 - Five synthetic scenarios, deterministic engine evaluation, unit/regression tests.
 - Reviewed normalized historical JSONL/gzip replay with provenance validation and conservative allowlisting.
-- Explicit dataset and Valiron disconnected states.
+- Explicit dataset-disconnected and SDK configuration/live-status states.
+- Public Valiron SDK 1.3.1: signed key challenge, verification, short-lived local sessions, cached profile refresh, verified event enrichment, and live demo.
 
 ## Not yet implemented / validated
 
 - Real AI Village slice, raw table extraction, schema/changelog-reviewed joins, human annotation, browser historical replay.
-- Published Valiron SDK verification, live proof flow, optional identity enrichment.
+- Provider-backed ANS/DNS/DID proofs, scored-trust enforcement, sandbox evaluation, and human/common-owner attribution (not needed for the key-based demo).
 - Sequence agreement, denial-to-route-change, retry abuse predicates and verified-principal grouping.
 - Anonymous network fingerprints, multi-signal signatures, baseline comparison and complete group precision/recall evaluation.
 - Production security, global DDoS handling, worker queues and distributed state.

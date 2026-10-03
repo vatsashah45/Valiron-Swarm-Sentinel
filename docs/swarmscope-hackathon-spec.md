@@ -1,6 +1,7 @@
 # SwarmScope — Standalone Hackathon Build Specification
 
 Status: proposed hackathon project, 2026-10-03.
+Implementation update: key-based SDK proof verification, profile enrichment, and a live verified-swarm demo are now implemented. See [Valiron integration](valiron-integration.md) for results and limits; the remaining specification is a roadmap, not a completion claim.
 Repository: a new standalone repository to be created by Vatsa.
 Name: SwarmScope (working name; no trademark/availability claim).
 Relationship to Valiron: optional public SDK integration; potential future product if experiments and customer demand justify it.

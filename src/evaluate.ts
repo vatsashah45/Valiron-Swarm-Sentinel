@@ -56,7 +56,7 @@ console.log(
         "group precision/recall annotations",
         "per-IP and capacity baseline comparison",
         "sequence/route-change/retry detectors",
-        "real SDK verification",
+        "SDK live verification is separate from this offline evaluation",
       ],
       results,
     },

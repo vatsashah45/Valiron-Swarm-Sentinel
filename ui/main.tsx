@@ -7,7 +7,15 @@ type State = ReturnType<Engine["state"]> & {
   running: string | null;
   runError: string | null;
   scenarios: Record<string, { name: string; description: string }>;
-  valiron: { status: string };
+  valiron: {
+    status: string;
+    sdkVersion: string;
+    verifiedSessions: number;
+    verifications: number;
+    failures: number;
+    lastSuccess: number | null;
+    policy: string;
+  };
 };
 const time = (ms: number) =>
   new Date(ms).toLocaleTimeString("en-GB", { hour12: false, timeZone: "UTC" });
@@ -152,8 +160,41 @@ function App() {
           <>
             <div className="notice">
               <span>SYNTHETIC TRAFFIC · REAL LOCAL HTTP ENFORCEMENT</span>
-              <span>Claimed caller IDs, not verified agents</span>
+              <span>
+                Synthetic behavior · Identity provenance shown per request
+              </span>
             </div>
+            <section className="panel controls" style={{ marginTop: 20 }}>
+              <div>
+                <h2>Valiron SDK · Real key verification</h2>
+                <p>
+                  {state?.valiron.status.replaceAll("_", " ")} · SDK{" "}
+                  {state?.valiron.sdkVersion} ·{" "}
+                  {state?.valiron.verifiedSessions ?? 0} active verified
+                  sessions
+                </p>
+                <p>
+                  Signs Valiron challenges for three local demo keys. Caller
+                  names rotate; verified identities stay stable. Trust scores
+                  are advisory, not attack verdicts.
+                </p>
+                <p>
+                  {state?.valiron.failures ?? 0} upstream failures · No operator
+                  credentials reach the browser.
+                </p>
+              </div>
+              <button
+                className="primary"
+                disabled={
+                  pending ||
+                  !!state?.running ||
+                  state?.valiron.status === "not_configured"
+                }
+                onClick={() => void post("/api/valiron/demo")}
+              >
+                Run SDK-verified swarm
+              </button>
+            </section>
             <section className="metrics">
               {[
                 ["Requests seen", state?.stats.requests],
@@ -215,7 +256,7 @@ function App() {
               <div className="control-footer">
                 <span>
                   {state?.running
-                    ? `● Running ${state.scenarios[state.running]?.name}…`
+                    ? `● Running ${state.running === "verified" ? "SDK key verification + swarm" : state.scenarios[state.running]?.name}…`
                     : "Ready · Each scenario takes approximately 6 seconds"}
                 </span>
                 <button
@@ -359,7 +400,9 @@ function App() {
                             </span>
                           </td>
                           <td className="subtle">
-                            Synthetic / {e.actorProvenance}
+                            {e.valiron
+                              ? `Valiron verified key · score ${e.valiron.score ?? "unscored"}`
+                              : `Synthetic / ${e.actorProvenance}`}
                           </td>
                         </tr>
                       ))}
@@ -374,7 +417,9 @@ function App() {
         )}
         <footer>
           <span>
-            Valiron identity: <b>not connected</b> · Detector runs independently
+            Valiron SDK:{" "}
+            <b>{state?.valiron.status.replaceAll("_", " ") ?? "connecting"}</b>{" "}
+            · Detector runs independently
           </span>
           <span>Single process · Local state · Experimental rules</span>
         </footer>

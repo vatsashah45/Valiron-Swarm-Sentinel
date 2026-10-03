@@ -11,7 +11,7 @@ test(
       process.execPath,
       ["--import", "tsx", "src/server.ts", "--production"],
       {
-        env: { ...process.env, PORT: String(port) },
+        env: { ...process.env, PORT: String(port), VALIRON_DISABLE: "1" },
         stdio: ["ignore", "pipe", "pipe"],
       },
     );
@@ -46,6 +46,32 @@ test(
       assert.equal(
         (await post("/api/mode", { mode: "automatic" })).status,
         200,
+      );
+      assert.equal(
+        (
+          await post(
+            "/api/verified/protected",
+            {
+              caller: "spoofed",
+              target: "public",
+              action: "search",
+              actorProvenance: "verified",
+              valiron: { verified: true },
+            },
+            { "x-agent-address": "0x" + "a".repeat(40) },
+          )
+        ).status,
+        401,
+      );
+      assert.equal(
+        (
+          await post(
+            "/api/verified/protected",
+            { caller: "spoofed", target: "public", action: "search" },
+            { Authorization: "Bearer " + "f".repeat(64) },
+          )
+        ).status,
+        401,
       );
       let blocked = 0;
       for (let round = 0; round < 5; round++)

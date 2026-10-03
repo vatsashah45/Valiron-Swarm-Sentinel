@@ -4,12 +4,20 @@ import {
   type ServerResponse,
 } from "node:http";
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { resolve, extname, sep } from "node:path";
 import { Engine, type DemoRequest } from "./core/engine.js";
 import { scenarios, scenario, type ScenarioName } from "./scenarios/index.js";
-import { valironStatus } from "./adapters/valiron.js";
+import { createValironIdentity, IdentityError } from "./adapters/valiron.js";
+import { enrollDemoAgents } from "./scenarios/verified.js";
 import type { Mode } from "./core/events.js";
 
+if (process.env.VALIRON_DISABLE !== "1" && existsSync(".env.local"))
+  process.loadEnvFile(".env.local");
+const identity = createValironIdentity(
+  process.env.VALIRON_DISABLE === "1" ? "" : process.env.VALIRON_API_KEY,
+);
+let demoSessions: Awaited<ReturnType<typeof enrollDemoAgents>> = [];
 const port = Number(process.env.PORT ?? 4317);
 const origin = `http://127.0.0.1:${port}`;
 let engine = new Engine();
@@ -65,6 +73,52 @@ async function run(name: ScenarioName) {
     running = null;
   }
 }
+async function runVerified() {
+  try {
+    if (
+      demoSessions.length !== 3 ||
+      demoSessions.some((s) => s.expiresAt < Date.now() + 30_000)
+    )
+      demoSessions = await enrollDemoAgents(identity);
+    for (let round = 0; round < 10; round++) {
+      for (let member = 0; member < 3; member++) {
+        const response = await fetch(`${origin}/api/verified/protected`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${demoSessions[member].token}`,
+          },
+          body: JSON.stringify({
+            caller: `rotating-${round}-${member}`,
+            target: "restricted",
+            action: "search",
+          }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (![403, 429].includes(response.status))
+          throw new Error("Verified demo request failed");
+        await response.arrayBuffer();
+      }
+      const response = await fetch(`${origin}/api/protected`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          caller: "unrelated",
+          action: "search",
+          target: "public",
+        }),
+        signal: AbortSignal.timeout(2000),
+      });
+      await response.arrayBuffer();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  } catch {
+    runError =
+      "Verified demo could not finish. Check Valiron availability, proof verification, or local identity request limits.";
+  } finally {
+    running = null;
+  }
+}
 const server = createServer(async (req, res) => {
   try {
     // Loopback-only demo, with DNS-rebinding and cross-origin control protection.
@@ -86,9 +140,50 @@ const server = createServer(async (req, res) => {
         running,
         runError,
         scenarios,
-        valiron: valironStatus,
+        valiron: identity.status(),
       });
-    if (path === "/api/protected" && req.method === "POST") {
+    if (path === "/api/valiron/challenge" && req.method === "POST") {
+      const input = await body(req);
+      if (typeof input.agentAddress !== "string")
+        throw new IdentityError(400, "Agent address required");
+      return json(res, 200, await identity.challenge(input.agentAddress));
+    }
+    if (path === "/api/valiron/verify" && req.method === "POST") {
+      const input = await body(req);
+      if (
+        typeof input.agentAddress !== "string" ||
+        typeof input.challenge !== "string" ||
+        typeof input.signature !== "string"
+      )
+        throw new IdentityError(400, "Signed challenge required");
+      return json(
+        res,
+        200,
+        await identity.verify({
+          agentAddress: input.agentAddress,
+          challenge: input.challenge,
+          signature: input.signature,
+        }),
+      );
+    }
+    if (path === "/api/valiron/demo" && req.method === "POST") {
+      await body(req);
+      if (running)
+        return json(res, 409, { error: "A scenario is already running" });
+      if (identity.status().status === "not_configured")
+        throw new IdentityError(
+          503,
+          "Configure server-side VALIRON_API_KEY first",
+        );
+      running = "verified";
+      runError = null;
+      void runVerified();
+      return json(res, 202, { running });
+    }
+    if (
+      ["/api/protected", "/api/verified/protected"].includes(path) &&
+      req.method === "POST"
+    ) {
       const input = await body(req);
       if (
         typeof input.caller !== "string" ||
@@ -99,7 +194,13 @@ const server = createServer(async (req, res) => {
         (input.outage !== undefined && typeof input.outage !== "boolean")
       )
         return json(res, 400, { error: "Invalid demo request" });
-      const result = engine.request(input as DemoRequest);
+      const proof =
+        path === "/api/verified/protected"
+          ? await identity.resolve(
+              req.headers.authorization?.replace(/^Bearer /, "") ?? "",
+            )
+          : undefined;
+      const result = engine.request(input as DemoRequest, Date.now(), proof);
       return json(
         res,
         result.status,
@@ -187,8 +288,8 @@ const server = createServer(async (req, res) => {
       json(res, 404, { error: "Not found" });
     }
   } catch (error) {
-    json(res, 400, {
-      error: error instanceof Error ? error.message : "Invalid request",
+    json(res, error instanceof IdentityError ? error.status : 400, {
+      error: error instanceof IdentityError ? error.message : "Invalid request",
     });
   }
 });
@@ -204,4 +305,5 @@ for (const signal of ["SIGINT", "SIGTERM"])
   process.on(signal, () => {
     server.close();
     void vite?.close();
+    void identity.dispose();
   });

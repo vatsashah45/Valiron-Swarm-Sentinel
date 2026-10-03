@@ -3,6 +3,7 @@ import { Detector } from "./detector.js";
 import { BlockRules } from "./blockRules.js";
 import { hash, targetHash } from "./normalize.js";
 import type { Event, Mode } from "./events.js";
+import type { IdentityContext } from "../adapters/valiron.js";
 
 export type DemoRequest = {
   caller: string;
@@ -26,7 +27,7 @@ export class Engine {
   recent: (Event & { outcome: string })[] = [];
   private rateWindow = 0;
   private rateCount = 0;
-  request(input: DemoRequest, now = Date.now()) {
+  request(input: DemoRequest, now = Date.now(), identity?: IdentityContext) {
     this.stats.requests++;
     if (now - this.rateWindow >= 1_000) {
       this.rateWindow = now;
@@ -39,15 +40,28 @@ export class Engine {
     const event: Event = {
       id: randomUUID(),
       timestampMs: now,
-      actorKey: hash(input.caller),
-      actorProvenance: "claimed",
+      actorKey: identity?.actorKey ?? hash(input.caller),
+      actorProvenance: identity ? "verified" : "claimed",
       source: "controlled_demo",
       eventType: "response",
       actionClass: input.action,
       endpointClass: "/api/protected",
       targetHash: targetHash(input.target),
       sourceRecordIds: [],
-      missingSignals: ["verified_identity", "network_fingerprint"],
+      missingSignals: identity
+        ? ["network_fingerprint"]
+        : ["verified_identity", "network_fingerprint"],
+      ...(identity
+        ? {
+            valiron: {
+              verifiedBy: identity.verifiedBy,
+              checkedAt: identity.checkedAt,
+              score: identity.score,
+              tier: identity.tier,
+              route: identity.route,
+            },
+          }
+        : {}),
     };
     event.sourceRecordIds = [event.id];
     const matched =
