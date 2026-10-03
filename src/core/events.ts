@@ -1,0 +1,42 @@
+export type Event = {
+  id: string;
+  timestampMs: number;
+  actorKey?: string;
+  actorProvenance: "dataset_id" | "verified" | "claimed" | "anonymous";
+  source: "ai_village" | "controlled_demo";
+  eventType: "action" | "response" | "message" | "identity";
+  endpointClass?: string;
+  actionClass?: string;
+  targetHash?: string;
+  payloadShapeHash?: string;
+  statusClass?: string;
+  policyViolation?: string;
+  requestId?: string;
+  networkPrefixHash?: string;
+  trustedClientFingerprint?: string;
+  verifiedPrincipalHash?: string;
+  identityFirstSeenMs?: number;
+  sourceRecordIds: string[];
+  missingSignals: string[];
+};
+export type Evidence = {
+  predicate: string;
+  eventIds: string[];
+  description: string;
+};
+export type Group = {
+  id: string;
+  source: Event["source"];
+  action: string;
+  target: string;
+  members: string[];
+  startMs: number;
+  endMs: number;
+  level: "candidate" | "repeated coordination" | "coordination with abuse";
+  coordinationEvidence: Evidence[];
+  abuseEvidence: Evidence[];
+  events: Event[];
+  missingSignals: string[];
+  confounders: string[];
+};
+export type Mode = "observe" | "manual" | "automatic";

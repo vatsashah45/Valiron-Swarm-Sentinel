@@ -1,0 +1,62 @@
+# SwarmScope / Valiron Swarm Sentinel
+
+A standalone hackathon prototype that finds repeated coordination, explains its evidence, and temporarily blocks coordinated policy violations against a **local controlled API**.
+
+**Implemented, not production-ready.** All bundled traffic is synthetic. HTTP requests and 429 enforcement are real; protected work is a bounded simulation. No real AI Village episode or verified Valiron SDK flow has been connected.
+
+## Run
+
+Node 22.12+ and npm:
+
+```sh
+npm ci
+npm run dev
+```
+
+Open http://127.0.0.1:4317. For the built UI: `npm run build && npm start`. `PORT` changes the local port. The server binds only to loopback and must not be exposed through a public tunnel or deployed as a security product.
+
+## Try the demo
+
+1. In **Observe only**, run **Scheduled collaborators**. A coordinated group appears, but no requests are blocked.
+2. Reset, select **Automatic block**, and run **Coordinated abuse**. After enough server-observed violations and repeated timing evidence, subsequent matching requests receive 429 before the protected handler. Unrelated requests continue.
+3. Inspect source event IDs and the 30-second scoped rule. Clear it or watch it expire.
+4. Reset and run **Upstream outage**. Synchronized 503s are not attack evidence.
+5. Run **Identity churn** to see an honest failure case: replacing claimed caller IDs evades this first detector.
+
+Reset between scenarios for isolated results; otherwise they share the rolling 60-second window. Manual mode requires an explicit click on an abuse-supported group. Observe mode clears current blocks. Automatic mode issues rules on new admitted events, not merely on polling the dashboard.
+
+## Architecture
+
+`HTTP request → bounded validation + safety cap → active scoped block check → demo handler → local detector → temporary rule`
+
+- Core: three or more observed callers on the same action/target, repeated in three disjoint <=5-second rounds, within 60 seconds.
+- Abuse: at least six server-observed forbidden-catalog violations across three or more callers. At least three callers must be implicated by both evidence categories.
+- Containment: caller bucket **and** action **and** target must match. Thirty-second rules do not extend on blocked traffic. Historic sources cannot issue rules.
+- No blocking based only on shared IP, fingerprint, client, schedule, or unverified identity. Caller IDs here are explicitly claimed and spoofable—not proof of individual agents.
+- State is local, single-process and bounded: 10k detector events, 500 grouping buckets, 128 members/512 events per bucket, 500 rules/audit records, 200 timeline entries. Overflow can miss attacks and is not a production guarantee.
+- The demo safety cap is 100 requests/second per process, independently labeled 503. A forbidden-catalog 403, an outage 503, and a swarm-block 429 are different outcomes.
+- No LLM or external identity call is on the decision path. Detector currently runs synchronously after handler outcome; it is not a hardened high-throughput implementation.
+
+## API (localhost only)
+
+`GET /api/state` returns bounded evidence and stats. Control endpoints accept JSON: `POST /api/mode` (`mode`), `/api/scenario` (`name`), `/api/reset`, `/api/blocks` (`groupId`), `/api/blocks/clear`.
+
+`POST /api/protected` accepts `{ "caller": "demo-1", "action": "search", "target": "public" }`. `action` is `search` or `lookup`; `restricted` triggers demo policy denial. `outage: true` simulates upstream failure. These controls are intentionally local test inputs, not trusted production claims. Body limit 4KB; host/origin checks prevent ordinary cross-origin control and DNS-rebinding access. Any local process can still call the API; this is not authentication.
+
+## Verify
+
+```sh
+npm test
+npm run build
+npm run evaluate
+```
+
+Evaluation replays a held-out timing variant through the same engine using a virtual clock and separate harness labels. It prints measured block rates, handler invocations, first-block time and in-process timings; it is not a real-world benchmark. The dashboard scenario runner sends actual local HTTP requests. See [evaluation notes](docs/evaluation.md).
+
+## Data and Valiron
+
+- Dataset explorer intentionally shows an honest empty state. Reviewed normalized JSONL replay is available with `npm run replay -- data/slice.jsonl`; see [data instructions](data/README.md). Raw AI Village mapping and browser replay are pending actual schema/data access.
+- Valiron is an optional future identity/trust enrichment adapter. The adapter reports **not connected**. There is no invented SDK verification and the public package is not yet a dependency. The separate repo can later install a pinned, verified public SDK version without depending on Valiron private source.
+- No IP/JA4/ASN/wallet provenance collection in this slice. No sequence, route-switch, or retry-after-denial detection yet. No distributed enforcement, production authorization, billing, real-data metrics, or commercial claims.
+
+The full [hackathon specification](docs/swarmscope-hackathon-spec.md) remains the roadmap, not a claim that every item is implemented. See [implementation status](docs/implementation-status.md).

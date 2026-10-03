@@ -1,0 +1,29 @@
+{
+  "name": "valiron-swarm-sentinel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx src/server.ts",
+    "build": "tsc --noEmit && vite build",
+    "start": "node --import tsx src/server.ts --production",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "evaluate": "node --import tsx src/evaluate.ts",
+    "replay": "node --import tsx src/import/replay.ts"
+  },
+  "dependencies": {
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "overrides": {
+    "rollup": "4.62.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.6",
+    "@types/react": "19.1.16",
+    "@types/react-dom": "19.1.9",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vite": "7.3.6"
+  }
+}
