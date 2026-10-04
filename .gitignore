@@ -6,3 +6,4 @@ data/*
 !data/README.md
 artifacts/
 *.log
+.vercel/

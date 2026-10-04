@@ -1,6 +1,6 @@
 # Implementation status
 
-Initial hackathon slice, 2026-10-03.
+Hackathon implementation updated 2026-10-04. Hosting configuration is prepared; no cloud deployment has been performed.
 
 ## Implemented
 
@@ -9,16 +9,17 @@ Initial hackathon slice, 2026-10-03.
 - Local HTTP test API, real 429 enforcement, observe/manual/automatic modes, expiring scoped blocks and audit trail.
 - Five synthetic scenarios, deterministic engine evaluation, unit/regression tests.
 - Reviewed normalized historical JSONL/gzip replay with provenance validation and conservative allowlisting.
-- Explicit dataset-disconnected and SDK configuration/live-status states.
+- Bounded, revision-pinned AI Village event importer, private sanitized report, historical browser timeline and SDK configuration/live-status states. Local import: 969 events / 43 dataset identities from 1,000 source rows; not a representative traffic sample or labeled attack corpus.
+- Render single-instance backend and Vercel static frontend configuration, exact-origin CORS, hosted token access gate, health checks, request bounds and shutdown handling. Research disabled by default on hosted deployments.
 - Public Valiron SDK 1.3.1: signed key challenge, verification, short-lived local sessions, cached profile refresh, verified event enrichment, and live demo.
 
 ## Not yet implemented / validated
 
-- Real AI Village slice, raw table extraction, schema/changelog-reviewed joins, human annotation, browser historical replay.
+- Cross-table dataset joins, human annotation and validated real-world attack detection. Historical timeline is available but does not establish API abuse or shared ownership.
 - Provider-backed ANS/DNS/DID proofs, scored-trust enforcement, sandbox evaluation, and human/common-owner attribution (not needed for the key-based demo).
 - Sequence agreement, denial-to-route-change, retry abuse predicates and verified-principal grouping.
 - Anonymous network fingerprints, multi-signal signatures, baseline comparison and complete group precision/recall evaluation.
-- Production security, global DDoS handling, worker queues and distributed state.
+- Cloud end-to-end deployment verification, production API-protection readiness, global DDoS handling, worker queues, per-user authorization and durable/distributed state. All authorized viewers share the hackathon demo.
 
 First slice deliberately implements one testable end-to-end rule instead of claiming all spec predicates. Detection is synchronous after admitted handler outcomes. Claimed caller IDs are replaceable; this is disclosed and tested. Automatic blocking is constrained to the controlled API and cannot enforce over historical agents.
 

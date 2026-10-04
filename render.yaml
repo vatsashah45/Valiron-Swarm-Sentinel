@@ -1,0 +1,25 @@
+# Private, single-instance hackathon demo; not a customer protection service.
+services:
+  - type: web
+    name: swarmscope-api
+    runtime: node
+    plan: starter
+    numInstances: 1
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeployTrigger: "off"
+    maxShutdownDelaySeconds: 30
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DEMO_ACCESS_TOKEN
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: VALIRON_API_KEY
+        sync: false
+      - key: ENABLE_RESEARCH
+        value: "false"

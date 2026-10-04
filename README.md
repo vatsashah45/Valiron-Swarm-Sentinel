@@ -2,7 +2,7 @@
 
 A standalone hackathon prototype that finds repeated coordination, explains its evidence, and temporarily blocks coordinated policy violations against a **local controlled API**.
 
-**Implemented, not production-ready.** Bundled traffic behavior is synthetic. HTTP enforcement and the Valiron key-verification flow are real; protected work is a bounded simulation. No real AI Village episode is loaded.
+**Deployable private hackathon demo, not production API protection.** Bundled traffic behavior is synthetic. HTTP enforcement and Valiron key verification are real; protected work is a bounded simulation. The Research view supports a separately provisioned real AI Village historical slice, with no fabricated attack labels.
 
 ## Run
 
@@ -13,7 +13,11 @@ npm ci
 npm run dev
 ```
 
-Open http://127.0.0.1:4317. For the built UI: `npm run build && npm start`. `PORT` changes the local port. The server binds only to loopback and must not be exposed through a public tunnel or deployed as a security product.
+Open http://127.0.0.1:4317. For the built UI: `npm run build && npm start`. `PORT` changes the local port. Local mode binds only to loopback. For public hosting, follow the [Render + Vercel deployment guide](docs/deployment.md): hosted mode requires a demo access token and exact allowed origins. Do not expose local mode through a public tunnel.
+
+## Hosting
+
+Use `render.yaml` for the single-instance backend and `vercel.json` for the static UI. Set `VITE_API_BASE_URL` on Vercel to the Render origin; set `ALLOWED_ORIGINS` on Render to the Vercel origin. Only Render receives `DEMO_ACCESS_TOKEN` and `VALIRON_API_KEY`. Visitors manually enter the separate demo token. Research is disabled in hosted mode until explicitly provisioned and approved. Sessions and demo state reset on restart; all authorized viewers share one demo. See [deployment instructions and go-live checks](docs/deployment.md).
 
 ## Try the demo
 
@@ -40,11 +44,11 @@ Reset between scenarios for isolated results; otherwise they share the rolling 6
 - The demo safety cap is 100 requests/second per process, independently labeled 503. A forbidden-catalog 403, an outage 503, and a swarm-block 429 are different outcomes.
 - Anonymous scenarios have no external calls. The verified route resolves a local proof session, refreshing its Valiron profile after 30 seconds (8-second upstream timeout). Refresh failure returns 503 before protected work. Detector runs synchronously after handler outcome; this is not a hardened high-throughput implementation.
 
-## API (localhost only)
+## API (local or authenticated hosted demo)
 
-`GET /api/state` returns bounded evidence and stats. Control endpoints accept JSON: `POST /api/mode` (`mode`), `/api/scenario` (`name`), `/api/reset`, `/api/blocks` (`groupId`), `/api/blocks/clear`.
+`GET /api/state` returns bounded evidence and stats. Control endpoints accept JSON: `POST /api/mode` (`mode`), `/api/scenario` (`name`), `/api/reset`, `/api/blocks` (`groupId`), `/api/blocks/clear`. In hosted mode every data/control endpoint requires `X-Demo-Token`. Only `/healthz`, `/api/access` (access-status only) and static UI assets are public. All authorized viewers share state and control privileges.
 
-`POST /api/protected` accepts `{ "caller": "demo-1", "action": "search", "target": "public" }`. `action` is `search` or `lookup`; `restricted` triggers demo policy denial. `outage: true` simulates upstream failure. These controls are intentionally local test inputs, not trusted production claims. Body limit 4KB; host/origin checks prevent ordinary cross-origin control and DNS-rebinding access. Any local process can still call the API; this is not authentication.
+`POST /api/protected` accepts `{ "caller": "demo-1", "action": "search", "target": "public" }`. `action` is `search` or `lookup`; `restricted` triggers demo policy denial. `outage: true` simulates upstream failure. These are controlled test inputs, not trusted production claims. Body limit 4KB, exact host/origin checks, and a separate 200 requests/second process-wide safety valve apply. Local mode without a configured demo token remains accessible to local processes; hosted mode refuses startup without a strong token.
 
 ## Verify
 
@@ -58,8 +62,8 @@ Evaluation replays a held-out timing variant through the same engine using a vir
 
 ## Data and Valiron
 
-- Dataset explorer intentionally shows an honest empty state. Reviewed normalized JSONL replay is available with `npm run replay -- data/slice.jsonl`; see [data instructions](data/README.md). Raw AI Village mapping and browser replay are pending actual schema/data access.
+- Research explorer reads a private sanitized historical slice. `npm run import:village` imports a bounded prefix from the pinned AI Village event export; `npm run replay -- data/village.jsonl` runs conservative offline analysis. See [dataset integration](docs/dataset-integration.md) and [hosted research setup](docs/deployment.md). Historical data is not live API traffic and is disabled by default on hosted deployments.
 - Public `@valiron/sdk@1.3.1` is installed and used for `getKeyAgentChallenge`, `verifyKeyAgent`, and `getKeyAgentProfile`. Real signed verification and live HTTP containment have passed. Profiles enrich events; null scores remain unscored. See [SDK integration and failure policy](docs/valiron-integration.md).
-- No IP/JA4/ASN/wallet provenance collection in this slice. No sequence, route-switch, or retry-after-denial detection yet. No distributed enforcement, production authorization, billing, real-data metrics, or commercial claims.
+- No IP/JA4/ASN/wallet provenance collection in this slice. No sequence, route-switch, or retry-after-denial detection yet. No distributed enforcement, per-user production authorization, billing, validated real-world attack metrics, or commercial claims.
 
 The full [hackathon specification](docs/swarmscope-hackathon-spec.md) remains the roadmap, not a claim that every item is implemented. See [implementation status](docs/implementation-status.md).

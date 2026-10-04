@@ -11,19 +11,40 @@ import { scenarios, scenario, type ScenarioName } from "./scenarios/index.js";
 import { createValironIdentity, IdentityError } from "./adapters/valiron.js";
 import { enrollDemoAgents } from "./scenarios/verified.js";
 import type { Mode } from "./core/events.js";
+import {
+  deploymentConfig,
+  validAccessToken,
+  AdmissionLimit,
+} from "./deployment.js";
+import { loadResearchReport } from "./import/researchReport.js";
+import { setTimeout as sleep } from "node:timers/promises";
 
 if (process.env.VALIRON_DISABLE !== "1" && existsSync(".env.local"))
   process.loadEnvFile(".env.local");
 const identity = createValironIdentity(
   process.env.VALIRON_DISABLE === "1" ? "" : process.env.VALIRON_API_KEY,
 );
+const config = deploymentConfig();
+const shutdown = new AbortController();
+const admission = new AdmissionLimit();
+let activeRequests = 0;
 let demoSessions: Awaited<ReturnType<typeof enrollDemoAgents>> = [];
-const port = Number(process.env.PORT ?? 4317);
-const origin = `http://127.0.0.1:${port}`;
+const { port, localOrigin: origin } = config;
+const internalHeaders = {
+  "Content-Type": "application/json",
+  "X-Demo-Token": config.token,
+};
 let engine = new Engine();
 let running: string | null = null;
 let runError: string | null = null;
-const production = process.argv.includes("--production");
+const production = config.hosted || process.argv.includes("--production");
+// Loaded once; importing is an explicit offline operation, never a request dependency.
+const research =
+  config.researchEnabled && existsSync(config.researchFile)
+    ? await loadResearchReport(config.researchFile)
+    : null;
+if (config.hosted && config.researchEnabled && !research)
+  throw new Error("Enabled research file is missing");
 const vite = production
   ? undefined
   : await (
@@ -56,19 +77,19 @@ async function run(name: ScenarioName) {
   const start = Date.now();
   try {
     for (const item of scenario(name)) {
-      await new Promise((r) =>
-        setTimeout(r, Math.max(0, start + item.offsetMs - Date.now())),
-      );
+      await sleep(Math.max(0, start + item.offsetMs - Date.now()), undefined, {
+        signal: shutdown.signal,
+      });
       const response = await fetch(`${origin}/api/protected`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: internalHeaders,
         body: JSON.stringify(item.input),
-        signal: AbortSignal.timeout(2000),
+        signal: AbortSignal.any([shutdown.signal, AbortSignal.timeout(2000)]),
       });
       await response.arrayBuffer();
     }
-  } catch (error) {
-    runError = error instanceof Error ? error.message : "Scenario failed";
+  } catch {
+    runError = "Scenario interrupted or local request failed";
   } finally {
     running = null;
   }
@@ -85,7 +106,7 @@ async function runVerified() {
         const response = await fetch(`${origin}/api/verified/protected`, {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            ...internalHeaders,
             Authorization: `Bearer ${demoSessions[member].token}`,
           },
           body: JSON.stringify({
@@ -93,7 +114,10 @@ async function runVerified() {
             target: "restricted",
             action: "search",
           }),
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.any([
+            shutdown.signal,
+            AbortSignal.timeout(10_000),
+          ]),
         });
         if (![403, 429].includes(response.status))
           throw new Error("Verified demo request failed");
@@ -101,16 +125,16 @@ async function runVerified() {
       }
       const response = await fetch(`${origin}/api/protected`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: internalHeaders,
         body: JSON.stringify({
           caller: "unrelated",
           action: "search",
           target: "public",
         }),
-        signal: AbortSignal.timeout(2000),
+        signal: AbortSignal.any([shutdown.signal, AbortSignal.timeout(2000)]),
       });
       await response.arrayBuffer();
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await sleep(500, undefined, { signal: shutdown.signal });
     }
   } catch {
     runError =
@@ -120,20 +144,71 @@ async function runVerified() {
   }
 }
 const server = createServer(async (req, res) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()",
+  );
+  if (production)
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+    );
+  let counted = false;
   try {
-    // Loopback-only demo, with DNS-rebinding and cross-origin control protection.
-    if (
-      ![`127.0.0.1:${port}`, `localhost:${port}`].includes(
-        req.headers.host ?? "",
-      )
-    )
+    // Minimal liveness probe; no identities, credentials, or dataset metadata.
+    if (req.url === "/healthz" && req.method === "GET")
+      return json(res, shutdown.signal.aborted ? 503 : 200, {
+        status: shutdown.signal.aborted ? "draining" : "ok",
+      });
+    if (shutdown.signal.aborted)
+      return json(res, 503, { error: "Server is draining" });
+    if (!admission.admit() || activeRequests >= 32)
+      return json(
+        res,
+        429,
+        { error: "Demo safety limit; retry shortly" },
+        { "Retry-After": "1" },
+      );
+    activeRequests++;
+    counted = true;
+    if (!config.hosts.has(req.headers.host ?? ""))
       return json(res, 403, { error: "Invalid host" });
-    if (
-      req.headers.origin &&
-      ![origin, `http://localhost:${port}`].includes(req.headers.origin)
-    )
+    if (req.headers.origin && !config.origins.has(req.headers.origin))
       return json(res, 403, { error: "Cross-origin requests disabled" });
+    if (req.headers.origin) {
+      res.setHeader("Access-Control-Allow-Origin", req.headers.origin);
+      res.setHeader("Vary", "Origin");
+    }
     const path = new URL(req.url ?? "/", origin).pathname;
+    if (req.method === "OPTIONS" && path.startsWith("/api/")) {
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Content-Type, X-Demo-Token, Authorization",
+      );
+      res.writeHead(204);
+      return res.end();
+    }
+    const authorized = validAccessToken(
+      req.headers["x-demo-token"],
+      config.token,
+    );
+    if (path === "/api/access" && req.method === "GET")
+      return json(res, 200, { authRequired: !!config.token, authorized });
+    if (path.startsWith("/api/") && !authorized)
+      return json(res, 401, { error: "Demo access token required" });
+    if (path === "/api/research" && req.method === "GET")
+      return json(res, 200, {
+        report: research,
+        message: config.researchEnabled
+          ? "No research slice provisioned on this server."
+          : "Research data is disabled on this deployment pending access/terms review.",
+      });
     if (path === "/api/state" && req.method === "GET")
       return json(res, 200, {
         ...engine.state(),
@@ -291,19 +366,25 @@ const server = createServer(async (req, res) => {
     json(res, error instanceof IdentityError ? error.status : 400, {
       error: error instanceof IdentityError ? error.message : "Invalid request",
     });
+  } finally {
+    if (counted) activeRequests--;
   }
 });
 server.requestTimeout = 5_000;
 server.headersTimeout = 5_000;
 server.maxConnections = 64;
-server.listen(port, "127.0.0.1", () =>
+server.keepAliveTimeout = 5000;
+server.maxRequestsPerSocket = 100;
+server.listen(port, config.bind, () =>
   console.log(
     `SwarmScope listening at ${origin} (${production ? "built UI" : "development"})`,
   ),
 );
 for (const signal of ["SIGINT", "SIGTERM"])
   process.on(signal, () => {
-    server.close();
+    shutdown.abort();
+    server.close(() => process.exit(0));
     void vite?.close();
     void identity.dispose();
+    setTimeout(() => process.exit(0), 10_000).unref();
   });

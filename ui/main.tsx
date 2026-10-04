@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { Research } from "./Research";
+import { apiFetch } from "./api";
+import { AccessGate } from "./AccessGate";
 import { createRoot } from "react-dom/client";
 import type { Group, Mode } from "../src/core/events";
 import {
@@ -34,10 +37,10 @@ function App() {
   const mutation = useRef(false);
   async function refresh(signal?: AbortSignal) {
     const sequence = ++requestSequence.current;
-    const response = await fetch("/api/state", {
+    const response = await apiFetch("/api/state", {
       signal: signal ?? AbortSignal.timeout(5000),
     });
-    if (!response.ok) throw new Error("Local API is unavailable");
+    if (!response.ok) throw new Error("Demo API unavailable or access expired");
     const next: State = await response.json();
     if (!mounted.current || sequence < appliedSequence.current) return next;
     appliedSequence.current = sequence;
@@ -80,7 +83,7 @@ function App() {
     };
   }, []);
   async function post(path: string, body: unknown = {}) {
-    const response = await fetch(path, {
+    const response = await apiFetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -198,7 +201,7 @@ function App() {
             <br />
             Contain the abuse.
           </p>
-          <span className="prototype">EXPERIMENTAL / LOCAL ONLY</span>
+          <span className="prototype">EXPERIMENTAL / DEMO ONLY</span>
         </div>
         <div className="sdk-mini">
           <span className="sdk-glyph">V</span>
@@ -256,7 +259,7 @@ function App() {
                 ? "A live view of agent coordination, identity, and scoped containment."
                 : tab === "events"
                   ? "Inspect the observations behind every decision. All timestamps are UTC."
-                  : "Connect permitted research data before making real-world claims."}
+                  : "Explore real historical activity, separately from controlled API scenarios."}
             </p>
           </div>
           <span className="version-tag">
@@ -294,39 +297,7 @@ function App() {
           </div>
         )}
         {tab === "research" ? (
-          <section className="research panel">
-            <span className="research-symbol">▦</span>
-            <span className="tiny-label">AI VILLAGE / NOT LOADED</span>
-            <h2>The real-data chapter is next.</h2>
-            <p>
-              No historical findings are fabricated here. The demo uses
-              controlled scenarios, and the AI Village importer requires a
-              reviewed, permitted normalized slice.
-            </p>
-            <div className="research-steps">
-              <div>
-                <b>01</b>
-                <h3>Review the source</h3>
-                <p>Check access terms, SCHEMA.md, and scaffolding changes.</p>
-              </div>
-              <div>
-                <b>02</b>
-                <h3>Preserve provenance</h3>
-                <p>
-                  Normalize actions with source IDs; mark unavailable signals.
-                </p>
-              </div>
-              <div>
-                <b>03</b>
-                <h3>Replay locally</h3>
-                <code>npm run replay -- data/slice.jsonl</code>
-              </div>
-            </div>
-            <p className="muted">
-              Historical coordination is not automatically abuse. Browser replay
-              and analyst annotations are not yet implemented.
-            </p>
-          </section>
+          <Research />
         ) : (
           <>
             <div className="view-toolbar">
@@ -887,4 +858,8 @@ function Evidence({
     </div>
   );
 }
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <AccessGate>
+    <App />
+  </AccessGate>,
+);
