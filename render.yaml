@@ -1,4 +1,4 @@
-# Private, single-instance hackathon demo; not a customer protection service.
+# Public, single-instance hackathon demo.
 services:
   - type: web
     name: swarmscope-api
@@ -15,8 +15,6 @@ services:
         value: "22"
       - key: NODE_ENV
         value: production
-      - key: DEMO_ACCESS_TOKEN
-        generateValue: true
       - key: ALLOWED_ORIGINS
         sync: false
       - key: VALIRON_API_KEY

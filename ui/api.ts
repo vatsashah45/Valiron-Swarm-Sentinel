@@ -21,14 +21,9 @@ export function apiBase(value: string) {
   return value;
 }
 const base = apiBase(rawBase);
-let accessToken = ""; // Tab memory only; never URL, localStorage, or sessionStorage.
-export function setAccessToken(value: string) {
-  accessToken = value;
-}
 export function apiFetch(path: string, init: RequestInit = {}) {
   if (!path.startsWith("/api/")) throw new Error("API path required");
   const headers = new Headers(init.headers);
-  if (accessToken) headers.set("X-Demo-Token", accessToken);
   return fetch(base + path, {
     ...init,
     headers,

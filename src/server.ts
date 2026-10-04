@@ -13,7 +13,6 @@ import { enrollDemoAgents } from "./scenarios/verified.js";
 import type { Mode } from "./core/events.js";
 import {
   deploymentConfig,
-  validAccessToken,
   AdmissionLimit,
 } from "./deployment.js";
 import { loadResearchReport } from "./import/researchReport.js";
@@ -32,7 +31,6 @@ let demoSessions: Awaited<ReturnType<typeof enrollDemoAgents>> = [];
 const { port, localOrigin: origin } = config;
 const internalHeaders = {
   "Content-Type": "application/json",
-  "X-Demo-Token": config.token,
 };
 let engine = new Engine();
 let running: string | null = null;
@@ -189,19 +187,14 @@ const server = createServer(async (req, res) => {
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
       res.setHeader(
         "Access-Control-Allow-Headers",
-        "Content-Type, X-Demo-Token, Authorization",
+        "Content-Type, Authorization",
       );
       res.writeHead(204);
       return res.end();
     }
-    const authorized = validAccessToken(
-      req.headers["x-demo-token"],
-      config.token,
-    );
+    // Compatibility with previously deployed frontends: judges need no login.
     if (path === "/api/access" && req.method === "GET")
-      return json(res, 200, { authRequired: !!config.token, authorized });
-    if (path.startsWith("/api/") && !authorized)
-      return json(res, 401, { error: "Demo access token required" });
+      return json(res, 200, { authRequired: false, authorized: true });
     if (path === "/api/research" && req.method === "GET")
       return json(res, 200, {
         report: research,

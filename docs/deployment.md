@@ -1,40 +1,34 @@
-# Deploy the private hackathon demo
+# Deploy the public hackathon demo
 
-Topology: browser → Vercel (static Vite UI) → Render (Node API). Render can also serve the entire UI itself; Vercel is optional. Neither platform has been deployed by this change.
+Browser → Vercel (Vite UI) → Render (Node API). Judges open the console, run scenarios, and explore provisioned research without logging in. Everyone shares one demo state.
 
-## 1. Render backend
+## Render
 
-Select `main` as the deployment branch in Render. Create a Blueprint from `render.yaml`. It declares **one paid Starter web service**, no databases, manual deploys. Review price before creating it. If creating a Web Service manually instead, use:
+Deploy `main`, Node 22, one instance. Build: `npm ci --include=dev && npm run build`. Start: `npm start`. Health check: `/healthz`.
 
-- Node 22; repository root directory.
-- Build: `npm ci --include=dev && npm run build`
-- Start: `npm start`
-- Health check: `/healthz`
-- `NODE_ENV=production`
-- `DEMO_ACCESS_TOKEN`: a randomly generated 32–256 character URL-safe secret (`openssl rand -hex 32`). Blueprint generates one; retrieve it privately from Render's environment settings.
-- `VALIRON_API_KEY`: operator API key, backend only. Without it, synthetic scenarios work but verified scenarios are unavailable. Rotate previously chat-shared credentials before deployment.
-- `ALLOWED_ORIGINS`: exact Vercel production origin, e.g. `https://your-project.vercel.app`. No trailing slash, paths, wildcard, or `null`. Add comma-separated exact custom-domain origins if needed. Can initially be empty for a Render-only UI.
-- `ENABLE_RESEARCH=false` (default in hosted mode).
+```
+NODE_VERSION=22
+NODE_ENV=production
+VALIRON_API_KEY=<backend-only operator key>
+ALLOWED_ORIGINS=https://valiron-swarm-sentinel.vercel.app
+ENABLE_RESEARCH=false
+```
 
-Render supplies `PORT` and `RENDER_EXTERNAL_URL`; the app binds `0.0.0.0`. For another host or a custom backend domain, set `PUBLIC_URL=https://your-backend.example`. Both this host and Render's hostname are accepted; forwarded host/IP headers are not used as identity or admission evidence.
+Render supplies `PORT` and `RENDER_EXTERNAL_URL`. Origins must have no trailing slash; additional exact frontend domains can be comma-separated. The server binds `0.0.0.0`. `DEMO_ACCESS_TOKEN` is no longer used and can be deleted from Render.
 
-Start with one instance and leave autoscaling off. Sessions, blocks, and counters reset on restart or deploy; concurrent viewers share the same demo state. A rolling deploy can briefly expose different state on old/new processes. Do not deploy during a presentation. This is not durable, multi-tenant production API protection.
+## Vercel
 
-## 2. Vercel frontend
+Deploy `main`, Vite, repository root, Node 22. `vercel.json` supplies build/output settings.
 
-Import the same repository, select **Vite**, root directory `.`, Node 22. Select `main` as the Production Branch. `vercel.json` supplies build and output settings.
+```
+VITE_API_BASE_URL=https://valiron-swarm-sentinel.onrender.com
+```
 
-Set only `VITE_API_BASE_URL=https://your-backend.onrender.com` for the intended environment, with no trailing slash. Redeploy after changing it: Vite embeds this public URL at build time. Do not set `DEMO_ACCESS_TOKEN`, `VALIRON_API_KEY`, or `HF_TOKEN` on Vercel. Never use `VITE_` for secrets.
+Redeploy when this public URL changes. Valiron and Hugging Face credentials stay off Vercel. Preview URLs need their exact origin in Render's `ALLOWED_ORIGINS`.
 
-Once Vercel assigns the domain, update Render's `ALLOWED_ORIGINS` to that exact origin and redeploy Render. Preview deployments are intentionally denied unless you explicitly add their exact origin; don't allow all `*.vercel.app` sites. For a Render-only deployment leave `VITE_API_BASE_URL` unset.
+## Research
 
-The browser sends a manually entered demo token in `X-Demo-Token`. It stays in tab memory only, not URLs or browser storage. Refresh clears it. **Every token holder can run/reset the shared demo and view enabled research.** Only share with trusted presenters/judges. This is an access gate, not per-user roles. Lock clears the token and unmounts the console; already-started server scenarios continue. Token rotation requires a backend restart; old tokens then stop working.
-
-## 3. Optional private historical research
-
-No data is shipped in Git or the Vercel bundle. With existing permitted Hugging Face access, run `npm run import:village` locally. Review `docs/dataset-integration.md`, publisher terms, and whether your intended viewers may access the derived records. A token gate is not a redistribution license.
-
-After permission/terms review, add the sanitized `data/village.json` as a **Render secret file** named `village.json`, then set:
+Provision the normalized `data/village.json` as a Render Secret File named `village.json` for the permitted dataset use. The report is visible in the public Research tab.
 
 ```
 ENABLE_RESEARCH=true
@@ -42,23 +36,10 @@ RESEARCH_TERMS_ACKNOWLEDGED=true
 RESEARCH_FILE=/etc/secrets/village.json
 ```
 
-Use the normalized report, never raw exports. The backend rejects oversized/invalid reports and strips unrecognized fields. Enabling research with a missing file or without acknowledgement fails startup. Keep `HF_TOKEN` off both deployed web services; import is offline, never triggered by visitors. Do not expose the slice as a static asset. Coordinate any public redistribution with the dataset publisher first.
+The web service never needs `HF_TOKEN`; importing is offline. Raw chat, commands, model output and credentials are not returned. See `docs/dataset-integration.md`.
 
-## 4. Go-live checks
+## Verify
 
-1. `npm test` and `npm run build` pass.
-2. Render `/healthz` returns `{"status":"ok"}` without secrets; this is liveness, not a Valiron availability check.
-3. `/api/state`, `/api/research`, all mutations and SDK endpoints return 401 without the demo token. No token goes in query strings.
-4. Open Vercel UI: access gate renders; wrong token fails; correct token opens console. Check browser errors for CORS if it cannot connect.
-5. Run a synthetic scenario, observe counters, verify automatic blocking and unaffected legitimate traffic. Then try the verified scenario with Valiron configured; confirm successful proofs, not merely “configured.”
-6. Research is disabled unless explicitly provisioned/approved. If enabled, confirm real counts and no raw text/credentials.
-7. Lock/reload removes browser access. Rotate demo token and confirm the old token is rejected.
-8. Test a restart before presenting; expect a clean demo state.
+Redeploy Render and Vercel from the latest `main`. Open an incognito tab: the console should appear immediately without a token form. `/healthz` and `/api/state` return 200 without website credentials. Run attack, good collaboration and outage scenarios. The verified scenario still uses real agent signature proofs. If research is enabled, check imported counts and timeline navigation.
 
-## Operational limits
-
-Authentication happens before request bodies, SDK calls, and state mutation. Exact-origin CORS is enforced; non-browser clients still require the token. There is a process-wide 200 requests/second safety limit and 32 concurrent handlers, bounded request bodies, SDK call limits, and connection/time limits. These are not distributed DDoS guarantees; use platform edge protections. Failures in Valiron deny the verified route; synthetic scenarios remain separate. No outgoing webhook/messages or dataset training are introduced.
-
-Stop service or rotate the demo token to revoke access. Revert to the previous known-good commit and redeploy for rollback; state will reset. Do not set production mode off to get around configuration validation.
-
-References: [Render web services](https://render.com/docs/web-services), [Blueprints](https://render.com/docs/blueprint-spec), [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite).
+Sessions, counters and blocks reset on restart. All visitors share one demo. Origin checks, request limits and Valiron call limits remain in place. To roll back, deploy a previous commit. To take the demo offline, suspend the service.

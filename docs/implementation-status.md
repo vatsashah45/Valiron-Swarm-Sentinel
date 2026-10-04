@@ -10,7 +10,7 @@ Hackathon implementation updated 2026-10-04. Hosting configuration is prepared; 
 - Five synthetic scenarios, deterministic engine evaluation, unit/regression tests.
 - Reviewed normalized historical JSONL/gzip replay with provenance validation and conservative allowlisting.
 - Bounded, revision-pinned AI Village event importer, private sanitized report, historical browser timeline and SDK configuration/live-status states. Local import: 969 events / 43 dataset identities from 1,000 source rows; not a representative traffic sample or labeled attack corpus.
-- Render single-instance backend and Vercel static frontend configuration, exact-origin CORS, hosted token access gate, health checks, request bounds and shutdown handling. Research disabled by default on hosted deployments.
+- Render single-instance backend and Vercel static frontend configuration, exact-origin CORS, public judge access, health checks, request bounds and shutdown handling. Research disabled by default until provisioned. The website no longer requires a demo token; verified-agent requests still require identity proofs.
 - Public Valiron SDK 1.3.1: signed key challenge, verification, short-lived local sessions, cached profile refresh, verified event enrichment, and live demo.
 
 ## Not yet implemented / validated

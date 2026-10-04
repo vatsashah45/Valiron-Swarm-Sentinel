@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Research } from "./Research";
 import { apiFetch } from "./api";
-import { AccessGate } from "./AccessGate";
 import { createRoot } from "react-dom/client";
 import type { Group, Mode } from "../src/core/events";
 import {
@@ -858,8 +857,4 @@ function Evidence({
     </div>
   );
 }
-createRoot(document.getElementById("root")!).render(
-  <AccessGate>
-    <App />
-  </AccessGate>,
-);
+createRoot(document.getElementById("root")!).render(<App />);

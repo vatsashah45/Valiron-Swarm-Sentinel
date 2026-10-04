@@ -2,7 +2,7 @@
 
 A standalone hackathon prototype that finds repeated coordination, explains its evidence, and temporarily blocks coordinated policy violations against a **local controlled API**.
 
-**Deployable private hackathon demo, not production API protection.** Bundled traffic behavior is synthetic. HTTP enforcement and Valiron key verification are real; protected work is a bounded simulation. The Research view supports a separately provisioned real AI Village historical slice, with no fabricated attack labels.
+**Public hackathon demo.** Judges can open the project without logging in. Bundled traffic behavior is synthetic. HTTP enforcement and Valiron key verification are real; protected work is a bounded simulation. The Research view supports a separately provisioned real AI Village historical slice, with no fabricated attack labels.
 
 ## Run
 
@@ -13,11 +13,11 @@ npm ci
 npm run dev
 ```
 
-Open http://127.0.0.1:4317. For the built UI: `npm run build && npm start`. `PORT` changes the local port. Local mode binds only to loopback. For public hosting, follow the [Render + Vercel deployment guide](docs/deployment.md): hosted mode requires a demo access token and exact allowed origins. Do not expose local mode through a public tunnel.
+Open http://127.0.0.1:4317. For the built UI: `npm run build && npm start`. `PORT` changes the local port. Local mode binds only to loopback. For public hosting, follow the [Render + Vercel deployment guide](docs/deployment.md) and configure exact allowed origins.
 
 ## Hosting
 
-Use `render.yaml` for the single-instance backend and `vercel.json` for the static UI. Set `VITE_API_BASE_URL` on Vercel to the Render origin; set `ALLOWED_ORIGINS` on Render to the Vercel origin. Only Render receives `DEMO_ACCESS_TOKEN` and `VALIRON_API_KEY`. Visitors manually enter the separate demo token. Research is disabled in hosted mode until explicitly provisioned and approved. Sessions and demo state reset on restart; all authorized viewers share one demo. See [deployment instructions and go-live checks](docs/deployment.md).
+Use `render.yaml` for the single-instance backend and `vercel.json` for the static UI. Set `VITE_API_BASE_URL` on Vercel to the Render origin; set `ALLOWED_ORIGINS` on Render to the Vercel origin. Only Render receives `VALIRON_API_KEY`. Visitors open the console directly. Sessions and demo state reset on restart; all visitors share one demo. See [deployment instructions](docs/deployment.md).
 
 ## Try the demo
 
@@ -44,11 +44,11 @@ Reset between scenarios for isolated results; otherwise they share the rolling 6
 - The demo safety cap is 100 requests/second per process, independently labeled 503. A forbidden-catalog 403, an outage 503, and a swarm-block 429 are different outcomes.
 - Anonymous scenarios have no external calls. The verified route resolves a local proof session, refreshing its Valiron profile after 30 seconds (8-second upstream timeout). Refresh failure returns 503 before protected work. Detector runs synchronously after handler outcome; this is not a hardened high-throughput implementation.
 
-## API (local or authenticated hosted demo)
+## API (public hackathon demo)
 
-`GET /api/state` returns bounded evidence and stats. Control endpoints accept JSON: `POST /api/mode` (`mode`), `/api/scenario` (`name`), `/api/reset`, `/api/blocks` (`groupId`), `/api/blocks/clear`. In hosted mode every data/control endpoint requires `X-Demo-Token`. Only `/healthz`, `/api/access` (access-status only) and static UI assets are public. All authorized viewers share state and control privileges.
+`GET /api/state` returns bounded evidence and stats. Control endpoints accept JSON: `POST /api/mode` (`mode`), `/api/scenario` (`name`), `/api/reset`, `/api/blocks` (`groupId`), `/api/blocks/clear`. Demo controls and provisioned research are public. The verified-agent request route separately requires a signed identity session.
 
-`POST /api/protected` accepts `{ "caller": "demo-1", "action": "search", "target": "public" }`. `action` is `search` or `lookup`; `restricted` triggers demo policy denial. `outage: true` simulates upstream failure. These are controlled test inputs, not trusted production claims. Body limit 4KB, exact host/origin checks, and a separate 200 requests/second process-wide safety valve apply. Local mode without a configured demo token remains accessible to local processes; hosted mode refuses startup without a strong token.
+`POST /api/protected` accepts `{ "caller": "demo-1", "action": "search", "target": "public" }`. `action` is `search` or `lookup`; `restricted` triggers demo policy denial. `outage: true` simulates upstream failure. These are controlled test inputs. Body limit 4KB, exact host/origin checks, and a 200 requests/second process-wide safety valve apply.
 
 ## Verify
 

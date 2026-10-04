@@ -7,7 +7,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   deploymentConfig,
-  validAccessToken,
   AdmissionLimit,
 } from "../src/deployment.js";
 import { loadResearchReport } from "../src/import/researchReport.js";
@@ -17,14 +16,13 @@ import { apiBase } from "../ui/api.js";
 const secret = "test-only-" + "a".repeat(40);
 const env = {
   NODE_ENV: "production",
-  DEMO_ACCESS_TOKEN: secret,
   PUBLIC_URL: "https://api.example.com",
   ALLOWED_ORIGINS: "https://demo.example.com",
 };
-test("hosted configuration fails closed; local development stays loopback", () => {
+test("hosted configuration starts without a demo token and validates origins; local development stays loopback", () => {
   assert.throws(
     () => deploymentConfig({ NODE_ENV: "production" }),
-    /DEMO_ACCESS_TOKEN/,
+    /PUBLIC_URL/,
   );
   assert.throws(
     () => deploymentConfig({ ...env, PUBLIC_URL: "" }),
@@ -46,9 +44,7 @@ test("hosted configuration fails closed; local development stays loopback", () =
   assert.equal(deploymentConfig(env).researchEnabled, false);
   assert.equal(deploymentConfig(env).bind, "0.0.0.0");
   assert.equal(deploymentConfig({}).bind, "127.0.0.1");
-  assert.equal(validAccessToken("wrong", secret), false);
-  assert.equal(validAccessToken(undefined, secret), false);
-  assert.equal(validAccessToken(secret, secret), true);
+  assert.equal(deploymentConfig({ ...env, DEMO_ACCESS_TOKEN: "ignored-old-value" }).bind, "0.0.0.0");
 });
 test("safety limit is bounded and resets; frontend URL never accepts arbitrary paths or insecure remote origins", () => {
   const limiter = new AdmissionLimit();
@@ -100,7 +96,7 @@ test("research loader strips untrusted fields and rejects invalid reports", asyn
   }
 });
 test(
-  "hosted HTTP protects all data and controls, supports exact-origin CORS and authenticated internal replay",
+  "hosted demo is public, preserves origin restrictions and verified-agent proofs, and runs scenarios without login",
   { timeout: 20000 },
   async () => {
     const port = 4339;
@@ -138,7 +134,6 @@ test(
       });
       const url = `http://127.0.0.1:${port}`;
       const auth = {
-        "X-Demo-Token": secret,
         Origin: "https://demo.example.com",
       };
       const post = (path: string, body = {}, headers = {}) =>
@@ -150,35 +145,14 @@ test(
       assert.equal((await fetch(url + "/healthz")).status, 200);
       assert.equal(
         (await (await fetch(url + "/api/access")).json()).authorized,
-        false,
+        true,
       );
       for (const path of ["/api/state", "/api/research"])
-        assert.equal((await fetch(url + path)).status, 401);
-      for (const path of [
-        "/api/reset",
-        "/api/scenario",
-        "/api/mode",
-        "/api/blocks",
-        "/api/blocks/clear",
-        "/api/protected",
-        "/api/verified/protected",
-        "/api/valiron/demo",
-        "/api/valiron/challenge",
-        "/api/valiron/verify",
-      ])
-        assert.equal((await post(path)).status, 401, path);
-      assert.equal(
-        (
-          await fetch(url + "/api/state", {
-            headers: { "X-Demo-Token": "wrong" },
-          })
-        ).status,
-        401,
-      );
-      assert.equal(
-        (await fetch(url + "/api/state?token=" + secret)).status,
-        401,
-      );
+        assert.equal((await fetch(url + path)).status, 200);
+      assert.equal((await post("/api/reset")).status, 200);
+      assert.equal((await post("/api/mode", { mode: "automatic" })).status, 200);
+      assert.equal((await post("/api/protected", { caller: "judge", action: "search", target: "public" })).status, 200);
+      assert.equal((await post("/api/verified/protected", { caller: "judge", action: "search", target: "public" })).status, 401);
       assert.equal(
         (
           await fetch(url + "/api/state", {
@@ -206,7 +180,7 @@ test(
         method: "OPTIONS",
         headers: {
           Origin: auth.Origin,
-          "Access-Control-Request-Headers": "x-demo-token",
+          "Access-Control-Request-Headers": "content-type",
         },
       });
       assert.equal(preflight.status, 204);
@@ -241,7 +215,7 @@ test(
       }
       assert.ok(
         requests > 0,
-        "Internal scenario must authenticate its own requests",
+        "Public scenario must execute requests",
       );
     } finally {
       child.kill("SIGTERM");

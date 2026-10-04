@@ -1,5 +1,3 @@
-import { createHash, timingSafeEqual } from "node:crypto";
-
 export function deploymentConfig(env: NodeJS.ProcessEnv = process.env) {
   const hosted =
     env.NODE_ENV === "production" ||
@@ -8,11 +6,6 @@ export function deploymentConfig(env: NodeJS.ProcessEnv = process.env) {
   const port = Number(env.PORT ?? 4317);
   if (!Number.isInteger(port) || port < 1 || port > 65535)
     throw new Error("Invalid PORT");
-  const token = env.DEMO_ACCESS_TOKEN ?? "";
-  if (hosted && !/^[A-Za-z0-9_-]{32,256}$/.test(token))
-    throw new Error(
-      "Hosted mode requires a random DEMO_ACCESS_TOKEN (32–256 URL-safe characters)",
-    );
   const parseOrigin = (value: string) => {
     const url = new URL(value);
     if (
@@ -63,7 +56,6 @@ export function deploymentConfig(env: NodeJS.ProcessEnv = process.env) {
   return {
     hosted,
     port,
-    token,
     origins,
     hosts,
     localOrigin,
@@ -72,16 +64,6 @@ export function deploymentConfig(env: NodeJS.ProcessEnv = process.env) {
     bind: hosted ? "0.0.0.0" : "127.0.0.1",
   };
 }
-export function validAccessToken(
-  value: string | string[] | undefined,
-  expected: string,
-) {
-  if (!expected) return true; // Only local mode may start without a token.
-  if (typeof value !== "string" || value.length > 256) return false;
-  const digest = (text: string) => createHash("sha256").update(text).digest();
-  return timingSafeEqual(digest(value), digest(expected));
-}
-
 /** Fixed-memory process-wide safety valve, not distributed DDoS protection. */
 export class AdmissionLimit {
   private second = -1;
