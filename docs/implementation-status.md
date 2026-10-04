@@ -1,6 +1,6 @@
 # Implementation status
 
-Hackathon implementation updated 2026-10-04. An earlier revision is publicly hosted; the strengthened revision is locally validated and not yet released or cloud-verified.
+Hackathon implementation updated 2026-10-04. The previous research/trust revision is publicly hosted and tested. The expanded investigation workspace described below is a new local revision, not yet released or cloud-verified.
 
 ## Implemented
 
@@ -15,7 +15,7 @@ Hackathon implementation updated 2026-10-04. An earlier revision is publicly hos
 
 ## Not yet implemented / validated
 
-- Cross-table dataset joins, a labeled annotation corpus and validated real-world attack detection. One coordination case has been manually reviewed; it does not establish API abuse or shared ownership.
+- Computer-use/chat joins, a representative labeled annotation corpus and validated real-world attack detection. Three dataset cases have been manually reviewed; they do not establish API abuse or shared ownership. Snapshot agent metadata is joined only for actor labels.
 - Provider-backed ANS/DNS/DID proofs, sandbox evaluation, and human/common-owner attribution (not needed for the key-based demo). Scored-trust enforcement is implemented on the dedicated trust route; a high-score live admission remains unverified.
 - Sequence agreement, denial-to-route-change, retry abuse predicates and verified-principal grouping.
 - Anonymous network fingerprints, multi-signal signatures, baseline comparison and complete group precision/recall evaluation.
@@ -25,6 +25,8 @@ First slice deliberately implements one testable end-to-end rule instead of clai
 
 Tooling: Rollup is explicitly pinned to 4.62.5 because 4.64.0 stalled this React build during transformation in the local environment. With the override, Vite 7.3.6 builds successfully. Re-test before changing the override. Dependency audit reported no advisories at verification time.
 ## Strengthened hackathon scope
+
+The latest workspace opens on research. It includes a searchable public allowlisted catalog of all 21 candidates (211 references), four investigations (three reviewed dataset cases and one attributed published report), actor-filtered replay, evidence-linked relationships, supported/conflicting/unresolved hypotheses, copyable deep links, evidence-pack export, and a four-step walkthrough ending in the existing controlled API lab. All 27 selected dataset records and the complete generated catalog are source-verified. See [submission](SUBMISSION.md).
 
 The current source adds a curated real AI Village investigation: 173,493 agent messages searched, 21 candidate artifact/day groups, and one manually reviewed eight-message/five-actor coordination bottleneck. The public research UI supports replay, actor highlighting, source metadata and explicit limitations. The raw chat archive remains private and ignored. See [findings](REAL_FINDINGS.md).
 

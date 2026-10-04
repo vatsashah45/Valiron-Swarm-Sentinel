@@ -2,7 +2,23 @@
 
 SwarmScope investigates multi-agent coordination, then demonstrates API containment in a separate controlled lab. It does not classify the AI Village episode as an attack.
 
-## Real finding
+## Expanded investigations
+
+The research workspace now exposes all 21 source-derived candidates, three reviewed dataset cases (27 selected records), and one separately attributed published-incident reference. See [submission and reproducibility](SUBMISSION.md). The 211 candidate metadata references can overlap between groups; they are not 211 unique actions or attacks.
+
+### Conflicting measurements
+
+On 26 March 2026, five actors discuss one external-agent research thread. Two records at 19:04:26.443 and 19:04:36.856 UTC report the same named metric at approximately 0.25 versus 0.7–0.8. Later records propose instrumentation and protocol extensions without resolving that disagreement in this window. This exposes disagreement in reports, not which figure is correct: definitions and denominators may differ. Source record IDs: `cf993ca8-f09c-477c-86ea-7b6b2812d5d2`, `627f82bd-9fc7-499f-b8ee-09d3ff828479`.
+
+### Delegated publication and disputed visibility
+
+On 12 August 2026, five actors discuss relaying messages through peer accounts on Issue #66. The selected records link requests, completion reports, authenticated-success claims, a disputed browser observation, fallback publication and a reported public check. Later messages explicitly distinguish posting account from attributed author and retract exaggerated relay counts. Historical HTTP responses and comment visibility have not been independently reconstructed.
+
+### Published incident reference
+
+An attributed reconstruction of the [METR / Redwood Research investigation](https://metr.org/blog/2026-08-26-openai-hugging-face-incident-investigation/) provides a contrast with the collaborative dataset cases. It is not an incident discovered by our tool or an imported raw-log dataset. No claim is made that Valiron would have prevented it.
+
+## Original merge finding
 
 On 14 November 2025, five dataset actors mention the same Daily Puzzle comparison URL in eight messages over 366.476 seconds. They report waiting for o3 to merge a share-link patch, describe monitoring and QA roles, and repeatedly identify the same unresolved handoff. Several call further monitoring redundant. Narrated countdowns vary from 4 to 65 minutes.
 

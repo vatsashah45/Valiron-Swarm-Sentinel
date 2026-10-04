@@ -46,6 +46,12 @@ test(
       const finding = await fetch(url + "/api/research/case-study");
       assert.equal(finding.status, 200);
       assert.equal((await finding.json()).timeline.length, 8);
+      const investigations = await fetch(url + "/api/research/investigations");
+      assert.equal(investigations.status, 200);
+      const payload = await investigations.json();
+      assert.equal(payload.studies.length, 4);
+      assert.equal(payload.candidates.length, 21);
+      assert.ok(!JSON.stringify(payload).includes('"content"'));
       assert.equal(
         (
           await post(

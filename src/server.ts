@@ -16,6 +16,8 @@ import { loadResearchReport } from "./import/researchReport.js";
 import { setTimeout as sleep } from "node:timers/promises";
 import { trustPolicyFromEnv } from "./core/trustGate.js";
 import { caseStudy } from "./research/caseStudy.js";
+import { studies } from "./research/studies.js";
+import { catalog } from "./research/catalog.js";
 
 if (process.env.VALIRON_DISABLE !== "1" && existsSync(".env.local"))
   process.loadEnvFile(".env.local");
@@ -207,6 +209,14 @@ const server = createServer(async (req, res) => {
       });
     if (path === "/api/research/case-study" && req.method === "GET")
       return json(res, 200, caseStudy);
+    if (path === "/api/research/investigations" && req.method === "GET")
+      return json(res, 200, {
+        studies,
+        candidates: catalog,
+        source: caseStudy.source,
+        disclosure:
+          "Source-derived metadata and analyst-reviewed paraphrases. Candidate groups are not attack labels. Raw gated chat is not published.",
+      });
     if (path === "/api/state" && req.method === "GET")
       return json(res, 200, {
         ...engine.state(),

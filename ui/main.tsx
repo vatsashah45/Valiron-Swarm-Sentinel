@@ -16,7 +16,7 @@ import "./style.css";
 function App() {
   const [live, setLive] = useState<State>();
   const [frozen, setFrozen] = useState<State>();
-  const [tab, setTab] = useState<"console" | "events" | "research">("console");
+  const [tab, setTab] = useState<"console" | "events" | "research">("research");
   const [scenario, setScenario] = useState<string>("attack");
   const [mode, setMode] = useState<Mode>("automatic");
   const [busy, setBusy] = useState(false);
@@ -251,7 +251,11 @@ function App() {
         </header>
         <section className="page-heading">
           <div>
-            <div className="eyebrow">COORDINATED THREATS. VISIBLE.</div>
+            <div className="eyebrow">
+              {tab === "research"
+                ? "AGENT COORDINATION. INVESTIGATED."
+                : "COORDINATED THREATS. VISIBLE."}
+            </div>
             <h1>
               {tab === "console"
                 ? "See the swarm. Stop the abuse."

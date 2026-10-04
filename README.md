@@ -1,8 +1,8 @@
 # SwarmScope / Valiron Swarm Sentinel
 
-A standalone hackathon prototype that finds repeated coordination, explains its evidence, and temporarily blocks coordinated policy violations against a **local controlled API**.
+A standalone hackathon investigation workspace: discover multi-agent groups, trace handoffs, challenge conflicting reports and share the evidence. A separate **controlled API lab** demonstrates Valiron trust admission and temporary containment of coordinated policy violations.
 
-**Public hackathon demo.** Judges can open the project without logging in. Explore a source-backed AI Village coordination episode, then test containment against controlled traffic. HTTP enforcement, Valiron key verification and trust-profile decisions are real; protected work is a bounded simulation. No historical episode is fabricated or labeled malicious without evidence. See [real findings and methods](docs/REAL_FINDINGS.md).
+**Public hackathon demo.** Judges open directly into research without logging in: 21 source-derived groups, three reviewed AI Village cases and one attributed published-incident reference. Search, inspect evidence, replay episodes, compare claims, trace handoffs and export a provenance pack. HTTP enforcement and Valiron decisions in the separate API lab are real; traffic behavior and protected work are controlled. See the [submission and three-minute demo script](docs/SUBMISSION.md).
 
 ## Run
 
@@ -29,7 +29,7 @@ The new console includes a guided experiment launcher, observed request-flow dia
 4. Run **An outage, not an attack**. Synchronized 503s are not attack evidence.
 5. Run **The evasion gap** to see an honest failure case: replacing claimed caller IDs evades this first detector.
 6. Configure `VALIRON_API_KEY` in a gitignored `.env.local`, select automatic containment, then launch **Verified, not trusted**. Three local keys sign real Valiron challenges. Their caller names rotate but their verified identity stays stable, so the scoped blocks still match. This sends real identity requests to Valiron; it does not run sandbox tests or transact funds.
-7. Open **Research data** to replay eight reviewed messages from five actors discussing one stalled merge. Source references, findings and limitations are visible without provisioning the private metadata slice.
+7. Open **Research data** to inspect conflicting measurements, delegated publication or a stalled merge. Click a hypothesis or relationship to reveal source records. Use **Discover groups** to search all 21 source-derived candidates. Sources and findings are available without provisioning private data on the hosted service.
 8. Choose **Valiron trust gate**. Three verified keys request an allowed resource through `/api/trust/protected`. Real SDK profile score ≥70 and route `prod` are required. Fresh unscored profiles receive a trust denial, not an attack label. `TRUST_GATE_MIN_SCORE` is optional and defaults to 70.
 
 Reset between scenarios for isolated results; otherwise they share the rolling 60-second window. Manual mode requires an explicit click on an abuse-supported group. Observe mode clears current blocks. Automatic mode issues rules on new admitted events, not merely on polling the dashboard.
@@ -65,6 +65,8 @@ npm run evaluate
 Evaluation replays a held-out timing variant through the same engine using a virtual clock and separate harness labels. It prints measured block rates, handler invocations, first-block time and in-process timings; it is not a real-world benchmark. The dashboard scenario runner sends actual local HTTP requests. See [evaluation notes](docs/evaluation.md).
 
 ## Data and Valiron
+
+`npm run research:build` regenerates the metadata-only public candidate catalog from authorized local chat/agent archives. `npm run research:verify` checks all 27 selected dataset records and the complete catalog against the pinned export. Report-only incident milestones are clearly marked secondary reconstruction, with approximate timing and direct source links. The UI's relationships and hypotheses are analyst-reviewed, not automated causal discovery.
 
 - Research explorer reads a private sanitized historical slice. `npm run import:village` imports a bounded prefix from the pinned AI Village event export; `npm run replay -- data/village.jsonl` runs conservative offline analysis. See [dataset integration](docs/dataset-integration.md) and [hosted research setup](docs/deployment.md). Historical data is not live API traffic and is disabled by default on hosted deployments.
 - Public `@valiron/sdk@1.3.1` is installed and used for `getKeyAgentChallenge`, `verifyKeyAgent`, and `getKeyAgentProfile`. Profiles enrich events and govern admission on the dedicated trust route; null scores remain unscored and are denied there. See [SDK integration and failure policy](docs/valiron-integration.md).

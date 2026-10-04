@@ -15,6 +15,7 @@
     "replay": "node --import tsx src/import/replay.ts",
     "import:village": "node --import tsx src/import/village.ts",
     "research:discover": "node --import tsx src/research/discover.ts",
+    "research:build": "node --import tsx src/research/catalogBuilder.ts",
     "research:verify": "node --import tsx src/research/verifyCase.ts"
   },
   "dependencies": {

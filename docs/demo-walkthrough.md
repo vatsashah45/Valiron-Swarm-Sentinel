@@ -39,3 +39,6 @@ These are controlled-scenario checks, not a claim about real-world detection pre
 Start in **Research data**: 173,493 real agent messages searched, 21 candidate groups, one reviewed handoff bottleneck. Replay the eight records and explain that repeated collaboration is not inherently malicious. Open source/method details if asked. Repository outcomes remain unverified.
 
 Then use **Try the Valiron trust gate**, launch, and inspect actual SDK score/route decisions. Fresh unscored keys are denied as insufficient trust, not accused of an attack. Finally run the existing **Verified, not trusted** experiment in automatic containment mode to show temporary blocks for server-observed coordinated violations while unrelated requests continue. These API scenarios are controlled traffic, not a replay of the historical episode.
+# Current recording guide
+
+Use the [three-minute submission script](SUBMISSION.md) for the expanded investigation workspace. It starts with conflicting measurements and delegated publication, exposes the complete candidate catalog, attributes the published incident reference, and ends with the separate Valiron API lab. Earlier instructions below describe the original controlled-demo slice.

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./api";
 import type { Event } from "../src/core/events";
-import { CaseStudy } from "./CaseStudy";
+import { Investigation } from "./Investigation";
 type Report = {
   source: string;
   revision: string;
@@ -40,7 +40,7 @@ export function Research({ onTryTrust }: { onTryTrust: () => void }) {
   }, []);
   return (
     <>
-      <CaseStudy onTryTrust={onTryTrust} />
+      <Investigation onTryTrust={onTryTrust} />
       <section className="research panel">
         <span className="tiny-label">AI VILLAGE / HISTORICAL DATA</span>
         <h2>Additional historical metadata slice</h2>
