@@ -4,7 +4,7 @@ Topology: browser → Vercel (static Vite UI) → Render (Node API). Render can 
 
 ## 1. Render backend
 
-Push the implementation branch first; select that branch explicitly in Render. Create a Blueprint from `render.yaml`. It declares **one paid Starter web service**, no databases, manual deploys. Review price before creating it. If creating a Web Service manually instead, use:
+Select `main` as the deployment branch in Render. Create a Blueprint from `render.yaml`. It declares **one paid Starter web service**, no databases, manual deploys. Review price before creating it. If creating a Web Service manually instead, use:
 
 - Node 22; repository root directory.
 - Build: `npm ci --include=dev && npm run build`
@@ -22,7 +22,7 @@ Start with one instance and leave autoscaling off. Sessions, blocks, and counter
 
 ## 2. Vercel frontend
 
-Import the same repository, select **Vite**, root directory `.`, Node 22. Select the implementation branch as the Production Branch (or merge it first). `vercel.json` supplies build and output settings.
+Import the same repository, select **Vite**, root directory `.`, Node 22. Select `main` as the Production Branch. `vercel.json` supplies build and output settings.
 
 Set only `VITE_API_BASE_URL=https://your-backend.onrender.com` for the intended environment, with no trailing slash. Redeploy after changing it: Vite embeds this public URL at build time. Do not set `DEMO_ACCESS_TOKEN`, `VALIRON_API_KEY`, or `HF_TOKEN` on Vercel. Never use `VITE_` for secrets.
 
