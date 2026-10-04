@@ -16,6 +16,13 @@ export type Event = {
   trustedClientFingerprint?: string;
   verifiedPrincipalHash?: string;
   identityFirstSeenMs?: number;
+  trustGate?: {
+    allowed: boolean;
+    reason: string;
+    minScore: number;
+    score: number | null;
+    route: string | null;
+  };
   valiron?: {
     verifiedBy: "valiron_key_challenge";
     checkedAt: number;

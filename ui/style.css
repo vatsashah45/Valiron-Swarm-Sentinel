@@ -1838,3 +1838,85 @@ footer > span:nth-child(2) {
   padding: 8px 12px;
   border-radius: 6px;
 }
+.case-study {
+  margin-bottom: 24px;
+  text-align: left;
+}
+.case-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin: 28px 0;
+}
+.case-metrics strong {
+  display: block;
+  font-size: 28px;
+}
+.case-metrics span,
+.case-record small {
+  color: #9ba3b3;
+}
+.case-map {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: center;
+  margin: 24px 0;
+}
+.case-actors {
+  display: grid;
+  gap: 8px;
+}
+.case-actors button {
+  text-align: left;
+  padding: 12px 16px;
+}
+.case-actors small {
+  display: block;
+  margin-top: 5px;
+}
+.case-actors .active {
+  border-color: #aa8bff;
+  background: #272039;
+}
+.case-target,
+.case-record,
+.case-next {
+  border: 1px solid #363644;
+  border-radius: 12px;
+  padding: 24px;
+}
+.case-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 20px 0;
+}
+.case-record {
+  min-height: 180px;
+}
+.case-study li {
+  margin: 10px 0;
+  line-height: 1.6;
+}
+.case-study details {
+  margin: 24px 0;
+}
+.case-study code {
+  overflow-wrap: anywhere;
+}
+.case-next {
+  margin-top: 24px;
+}
+.outcome.trust_denied {
+  color: #c5a5ff;
+}
+@media (max-width: 760px) {
+  .case-map {
+    grid-template-columns: 1fr;
+  }
+  .case-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+}

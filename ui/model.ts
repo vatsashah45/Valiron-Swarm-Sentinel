@@ -5,9 +5,19 @@ export type State = ReturnType<Engine["state"]> & {
   runError: string | null;
   scenarios: Record<string, { name: string; description: string }>;
   valiron: ReturnType<ValironIdentity["status"]>;
+  trustPolicy: { minScore: number; allowedRoutes: string[] };
 };
 export type RecentEvent = State["recent"][number];
 export const experiments = [
+  {
+    id: "trust",
+    name: "Valiron trust gate",
+    tag: "LIVE PROFILE DECISION",
+    detail:
+      "Three verified keys request an allowed resource. Real Valiron scores and routes decide admission.",
+    expect: "Unscored is denied as insufficient trust, not labeled malicious.",
+    icon: "◈",
+  },
   {
     id: "attack",
     name: "Coordinated attack",
@@ -72,6 +82,7 @@ export function outcomeName(outcome: string) {
         completed: "Served",
         swarm_blocked: "Swarm blocked",
         policy_denied: "Policy denied",
+        trust_denied: "Trust denied",
         upstream_failed: "Upstream failed",
       } as Record<string, string>
     )[outcome] ?? outcome
@@ -127,6 +138,7 @@ export function exportReport(state: State) {
     stats: state.stats,
     mode: state.mode,
     valiron: state.valiron,
+    trustPolicy: state.trustPolicy,
     groups: state.groups,
     rules: state.rules,
     audit: state.audit,

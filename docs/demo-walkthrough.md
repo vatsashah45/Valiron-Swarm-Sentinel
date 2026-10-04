@@ -34,3 +34,8 @@ The UI is local-only. Do not expose this administrative/demo server publicly. Ex
 - Desktop at 1440px and mobile at 390px had no document-level horizontal overflow. The event table scrolls within its own container.
 
 These are controlled-scenario checks, not a claim about real-world detection precision or production performance.
+# Stronger submission opening
+
+Start in **Research data**: 173,493 real agent messages searched, 21 candidate groups, one reviewed handoff bottleneck. Replay the eight records and explain that repeated collaboration is not inherently malicious. Open source/method details if asked. Repository outcomes remain unverified.
+
+Then use **Try the Valiron trust gate**, launch, and inspect actual SDK score/route decisions. Fresh unscored keys are denied as insufficient trust, not accused of an attack. Finally run the existing **Verified, not trusted** experiment in automatic containment mode to show temporary blocks for server-observed coordinated violations while unrelated requests continue. These API scenarios are controlled traffic, not a replay of the historical episode.

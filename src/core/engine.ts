@@ -4,6 +4,7 @@ import { BlockRules } from "./blockRules.js";
 import { hash, targetHash } from "./normalize.js";
 import type { Event, Mode } from "./events.js";
 import type { IdentityContext } from "../adapters/valiron.js";
+import { evaluateTrust, type TrustPolicy } from "./trustGate.js";
 
 export type DemoRequest = {
   caller: string;
@@ -23,11 +24,17 @@ export class Engine {
     upstreamFailed: 0,
     completed: 0,
     safetyRejected: 0,
+    trustDenied: 0,
   };
   recent: (Event & { outcome: string })[] = [];
   private rateWindow = 0;
   private rateCount = 0;
-  request(input: DemoRequest, now = Date.now(), identity?: IdentityContext) {
+  request(
+    input: DemoRequest,
+    now = Date.now(),
+    identity?: IdentityContext,
+    options: { trustPolicy?: TrustPolicy; endpointClass?: string } = {},
+  ) {
     this.stats.requests++;
     if (now - this.rateWindow >= 1_000) {
       this.rateWindow = now;
@@ -45,7 +52,7 @@ export class Engine {
       source: "controlled_demo",
       eventType: "response",
       actionClass: input.action,
-      endpointClass: "/api/protected",
+      endpointClass: options.endpointClass ?? "/api/protected",
       targetHash: targetHash(input.target),
       sourceRecordIds: [],
       missingSignals: identity
@@ -63,6 +70,8 @@ export class Engine {
           }
         : {}),
     };
+    if (options.trustPolicy)
+      event.trustGate = evaluateTrust(identity, options.trustPolicy);
     event.sourceRecordIds = [event.id];
     const matched =
       this.mode === "observe" ? undefined : this.blocks.match(event, now);
@@ -75,6 +84,17 @@ export class Engine {
         outcome: "swarm_blocked",
         ruleId: matched.id,
         retryAfter: Math.max(1, Math.ceil((matched.expiresAt - now) / 1_000)),
+      };
+    }
+    if (event.trustGate && !event.trustGate.allowed) {
+      this.stats.trustDenied++;
+      event.statusClass = "403";
+      this.remember(event, "trust_denied");
+      // Missing readiness is not malicious behavior and must not become swarm evidence.
+      return {
+        status: 403,
+        outcome: "trust_denied",
+        trustGate: event.trustGate,
       };
     }
     this.stats.admitted++;
@@ -97,7 +117,11 @@ export class Engine {
       for (const group of this.detector.groups(now))
         this.blocks.issue(group, now, this.mode);
     this.remember(event, outcome);
-    return { status, outcome };
+    return {
+      status,
+      outcome,
+      ...(event.trustGate ? { trustGate: event.trustGate } : {}),
+    };
   }
   private remember(event: Event, outcome: string) {
     this.recent.push({ ...event, outcome });

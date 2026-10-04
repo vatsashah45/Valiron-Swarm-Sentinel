@@ -54,7 +54,7 @@ export class ValironIdentity {
       verifiedSessions: this.sessions.size,
       verifications: this.verifiedCount,
       policy:
-        "Proof required on verified route; trust score advisory; anonymous demo separate",
+        "Verified route requires proof; dedicated trust route enforces score and prod eligibility; anonymous demo separate",
     };
   }
   private prune() {

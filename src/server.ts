@@ -11,12 +11,11 @@ import { scenarios, scenario, type ScenarioName } from "./scenarios/index.js";
 import { createValironIdentity, IdentityError } from "./adapters/valiron.js";
 import { enrollDemoAgents } from "./scenarios/verified.js";
 import type { Mode } from "./core/events.js";
-import {
-  deploymentConfig,
-  AdmissionLimit,
-} from "./deployment.js";
+import { deploymentConfig, AdmissionLimit } from "./deployment.js";
 import { loadResearchReport } from "./import/researchReport.js";
 import { setTimeout as sleep } from "node:timers/promises";
+import { trustPolicyFromEnv } from "./core/trustGate.js";
+import { caseStudy } from "./research/caseStudy.js";
 
 if (process.env.VALIRON_DISABLE !== "1" && existsSync(".env.local"))
   process.loadEnvFile(".env.local");
@@ -24,6 +23,7 @@ const identity = createValironIdentity(
   process.env.VALIRON_DISABLE === "1" ? "" : process.env.VALIRON_API_KEY,
 );
 const config = deploymentConfig();
+const trustPolicy = trustPolicyFromEnv();
 const shutdown = new AbortController();
 const admission = new AdmissionLimit();
 let activeRequests = 0;
@@ -92,7 +92,7 @@ async function run(name: ScenarioName) {
     running = null;
   }
 }
-async function runVerified() {
+async function runVerified(trust = false) {
   try {
     if (
       demoSessions.length !== 3 ||
@@ -101,23 +101,26 @@ async function runVerified() {
       demoSessions = await enrollDemoAgents(identity);
     for (let round = 0; round < 10; round++) {
       for (let member = 0; member < 3; member++) {
-        const response = await fetch(`${origin}/api/verified/protected`, {
-          method: "POST",
-          headers: {
-            ...internalHeaders,
-            Authorization: `Bearer ${demoSessions[member].token}`,
+        const response = await fetch(
+          `${origin}${trust ? "/api/trust/protected" : "/api/verified/protected"}`,
+          {
+            method: "POST",
+            headers: {
+              ...internalHeaders,
+              Authorization: `Bearer ${demoSessions[member].token}`,
+            },
+            body: JSON.stringify({
+              caller: `rotating-${round}-${member}`,
+              target: trust ? "public" : "restricted",
+              action: "search",
+            }),
+            signal: AbortSignal.any([
+              shutdown.signal,
+              AbortSignal.timeout(10_000),
+            ]),
           },
-          body: JSON.stringify({
-            caller: `rotating-${round}-${member}`,
-            target: "restricted",
-            action: "search",
-          }),
-          signal: AbortSignal.any([
-            shutdown.signal,
-            AbortSignal.timeout(10_000),
-          ]),
-        });
-        if (![403, 429].includes(response.status))
+        );
+        if (!(trust ? [200, 403, 429] : [403, 429]).includes(response.status))
           throw new Error("Verified demo request failed");
         await response.arrayBuffer();
       }
@@ -202,6 +205,8 @@ const server = createServer(async (req, res) => {
           ? "No research slice provisioned on this server."
           : "Research data is disabled on this deployment pending access/terms review.",
       });
+    if (path === "/api/research/case-study" && req.method === "GET")
+      return json(res, 200, caseStudy);
     if (path === "/api/state" && req.method === "GET")
       return json(res, 200, {
         ...engine.state(),
@@ -209,6 +214,7 @@ const server = createServer(async (req, res) => {
         runError,
         scenarios,
         valiron: identity.status(),
+        trustPolicy,
       });
     if (path === "/api/valiron/challenge" && req.method === "POST") {
       const input = await body(req);
@@ -234,7 +240,10 @@ const server = createServer(async (req, res) => {
         }),
       );
     }
-    if (path === "/api/valiron/demo" && req.method === "POST") {
+    if (
+      ["/api/valiron/demo", "/api/valiron/trust-demo"].includes(path) &&
+      req.method === "POST"
+    ) {
       await body(req);
       if (running)
         return json(res, 409, { error: "A scenario is already running" });
@@ -243,13 +252,18 @@ const server = createServer(async (req, res) => {
           503,
           "Configure server-side VALIRON_API_KEY first",
         );
-      running = "verified";
+      const trust = path === "/api/valiron/trust-demo";
+      running = trust ? "trust" : "verified";
       runError = null;
-      void runVerified();
+      void runVerified(trust);
       return json(res, 202, { running });
     }
     if (
-      ["/api/protected", "/api/verified/protected"].includes(path) &&
+      [
+        "/api/protected",
+        "/api/verified/protected",
+        "/api/trust/protected",
+      ].includes(path) &&
       req.method === "POST"
     ) {
       const input = await body(req);
@@ -263,12 +277,15 @@ const server = createServer(async (req, res) => {
       )
         return json(res, 400, { error: "Invalid demo request" });
       const proof =
-        path === "/api/verified/protected"
+        path !== "/api/protected"
           ? await identity.resolve(
               req.headers.authorization?.replace(/^Bearer /, "") ?? "",
             )
           : undefined;
-      const result = engine.request(input as DemoRequest, Date.now(), proof);
+      const result = engine.request(input as DemoRequest, Date.now(), proof, {
+        endpointClass: path,
+        ...(path === "/api/trust/protected" ? { trustPolicy } : {}),
+      });
       return json(
         res,
         result.status,

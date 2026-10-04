@@ -43,6 +43,24 @@ test(
           headers: { "Content-Type": "application/json", ...headers },
           body: JSON.stringify(data),
         });
+      const finding = await fetch(url + "/api/research/case-study");
+      assert.equal(finding.status, 200);
+      assert.equal((await finding.json()).timeline.length, 8);
+      assert.equal(
+        (
+          await post(
+            "/api/trust/protected",
+            {
+              caller: "forged",
+              target: "public",
+              action: "search",
+              valiron: { score: 100, route: "prod" },
+            },
+            { Authorization: "Bearer fabricated" },
+          )
+        ).status,
+        401,
+      );
       assert.equal(
         (await post("/api/mode", { mode: "automatic" })).status,
         200,

@@ -1,6 +1,6 @@
 # Implementation status
 
-Hackathon implementation updated 2026-10-04. Hosting configuration is prepared; no cloud deployment has been performed.
+Hackathon implementation updated 2026-10-04. An earlier revision is publicly hosted; the strengthened revision is locally validated and not yet released or cloud-verified.
 
 ## Implemented
 
@@ -15,8 +15,8 @@ Hackathon implementation updated 2026-10-04. Hosting configuration is prepared; 
 
 ## Not yet implemented / validated
 
-- Cross-table dataset joins, human annotation and validated real-world attack detection. Historical timeline is available but does not establish API abuse or shared ownership.
-- Provider-backed ANS/DNS/DID proofs, scored-trust enforcement, sandbox evaluation, and human/common-owner attribution (not needed for the key-based demo).
+- Cross-table dataset joins, a labeled annotation corpus and validated real-world attack detection. One coordination case has been manually reviewed; it does not establish API abuse or shared ownership.
+- Provider-backed ANS/DNS/DID proofs, sandbox evaluation, and human/common-owner attribution (not needed for the key-based demo). Scored-trust enforcement is implemented on the dedicated trust route; a high-score live admission remains unverified.
 - Sequence agreement, denial-to-route-change, retry abuse predicates and verified-principal grouping.
 - Anonymous network fingerprints, multi-signal signatures, baseline comparison and complete group precision/recall evaluation.
 - Cloud end-to-end deployment verification, production API-protection readiness, global DDoS handling, worker queues, per-user authorization and durable/distributed state. All authorized viewers share the hackathon demo.
@@ -24,3 +24,8 @@ Hackathon implementation updated 2026-10-04. Hosting configuration is prepared; 
 First slice deliberately implements one testable end-to-end rule instead of claiming all spec predicates. Detection is synchronous after admitted handler outcomes. Claimed caller IDs are replaceable; this is disclosed and tested. Automatic blocking is constrained to the controlled API and cannot enforce over historical agents.
 
 Tooling: Rollup is explicitly pinned to 4.62.5 because 4.64.0 stalled this React build during transformation in the local environment. With the override, Vite 7.3.6 builds successfully. Re-test before changing the override. Dependency audit reported no advisories at verification time.
+## Strengthened hackathon scope
+
+The current source adds a curated real AI Village investigation: 173,493 agent messages searched, 21 candidate artifact/day groups, and one manually reviewed eight-message/five-actor coordination bottleneck. The public research UI supports replay, actor highlighting, source metadata and explicit limitations. The raw chat archive remains private and ignored. See [findings](REAL_FINDINGS.md).
+
+The dedicated Valiron trust endpoint requires signed proof, a real profile score ≥70 by default, and route `prod`. Unknown trust is denied without being treated as malicious. Existing scoped swarm rules still win over passing trust. Original anonymous and verified-abuse scenarios remain separate controlled labs. These additions are prototype implementation, not a production-protection claim; deployment requires releasing this revision.

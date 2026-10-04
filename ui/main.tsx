@@ -118,8 +118,14 @@ function App() {
       await post("/api/reset");
       await post("/api/mode", { mode });
       await post(
-        scenario === "verified" ? "/api/valiron/demo" : "/api/scenario",
-        scenario === "verified" ? {} : { name: scenario },
+        scenario === "trust"
+          ? "/api/valiron/trust-demo"
+          : scenario === "verified"
+            ? "/api/valiron/demo"
+            : "/api/scenario",
+        scenario === "verified" || scenario === "trust"
+          ? {}
+          : { name: scenario },
       );
       appliedSequence.current = ++requestSequence.current;
       autoCapture.current = captureAtEnd;
@@ -268,8 +274,17 @@ function App() {
         <div className="disclosure">
           <span className="disclosure-icon">◈</span>
           <span>
-            <b>Controlled demo</b> · Synthetic behavior. Real HTTP enforcement.
-            Real Valiron proofs only where marked.
+            {tab === "research" ? (
+              <>
+                <b>Source-backed research</b> · Historical coordination, analyst
+                findings and source references.
+              </>
+            ) : (
+              <>
+                <b>Controlled demo</b> · Synthetic behavior. Real HTTP
+                enforcement. Real Valiron proofs only where marked.
+              </>
+            )}
           </span>
           <span>Not production protection</span>
         </div>
@@ -296,7 +311,12 @@ function App() {
           </div>
         )}
         {tab === "research" ? (
-          <Research />
+          <Research
+            onTryTrust={() => {
+              setTab("console");
+              setScenario("trust");
+            }}
+          />
         ) : (
           <>
             <div className="view-toolbar">
@@ -448,7 +468,7 @@ function App() {
                         className="launch"
                         disabled={
                           disabled ||
-                          (scenario === "verified" &&
+                          ((scenario === "verified" || scenario === "trust") &&
                             live?.valiron.status === "not_configured")
                         }
                         onClick={launch}
@@ -461,10 +481,12 @@ function App() {
                         <span>{running ? "◌" : "↗"}</span>
                       </button>
                       <small className="run-disclosure">
-                        {scenario === "verified"
+                        {scenario === "verified" || scenario === "trust"
                           ? "Uses real Valiron API calls. Enrollment may take longer than the traffic run."
                           : "About 6 seconds · Local requests only."}{" "}
-                        Launch clears the previous server session.
+                        Launch clears the previous server session.{" "}
+                        {scenario === "trust" &&
+                          "Trust eligibility is enforced independently of the behavioral policy selector."}
                       </small>
                     </div>
                   </section>
@@ -472,7 +494,9 @@ function App() {
                 <section className="sdk-strip">
                   <span className="sdk-glyph">V</span>
                   <div>
-                    <h3>Identity by Valiron. Detection by SwarmScope.</h3>
+                    <h3>
+                      Identity and trust by Valiron. Detection by SwarmScope.
+                    </h3>
                     <p>
                       {live?.valiron.verifiedSessions ?? 0} active verified
                       sessions · {live?.valiron.verifications ?? 0} completed
@@ -490,6 +514,9 @@ function App() {
                     A verified key is not a trusted actor.
                     <br />
                     Unscored profiles stay unscored.
+                    <br />
+                    Gate: score ≥ {state?.trustPolicy?.minScore ?? 70}, prod
+                    route. {state?.stats.trustDenied ?? 0} trust denials.
                   </p>
                 </section>
                 <div className="evidence-grid">
@@ -669,6 +696,7 @@ function App() {
                       "completed",
                       "swarm_blocked",
                       "policy_denied",
+                      "trust_denied",
                       "upstream_failed",
                     ].map((value) => (
                       <option key={value} value={value}>
@@ -715,6 +743,16 @@ function App() {
                                     ? "Unscored"
                                     : `Score ${e.valiron.score}`}{" "}
                                   · {e.valiron.tier ?? "No tier"}
+                                  {e.trustGate && (
+                                    <>
+                                      <br />
+                                      {e.trustGate.reason.replaceAll(
+                                        "_",
+                                        " ",
+                                      )}{" "}
+                                      · route {e.trustGate.route ?? "unset"}
+                                    </>
+                                  )}
                                 </small>
                               </span>
                             ) : (
