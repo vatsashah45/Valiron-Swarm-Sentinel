@@ -17,12 +17,14 @@ Open http://127.0.0.1:4317. For the built UI: `npm run build && npm start`. `POR
 
 ## Try the demo
 
-1. In **Observe only**, run **Scheduled collaborators**. A coordinated group appears, but no requests are blocked.
-2. Reset, select **Automatic block**, and run **Coordinated abuse**. After enough server-observed violations and repeated timing evidence, subsequent matching requests receive 429 before the protected handler. Unrelated requests continue.
+The new console includes a guided experiment launcher, observed request-flow diagram, traffic chart, searchable event explorer, source-evidence inspector, snapshot/export controls, and presentation mode. See the [five-minute presenter walkthrough](docs/demo-walkthrough.md). The scenario names below refer to the underlying scenario types; choose their corresponding titles in the launcher.
+
+1. Choose **Good collaboration** and **Observe only**, then **Launch experiment**. A coordinated group appears, but no requests are blocked.
+2. Choose **Coordinated attack** and **Automatic containment**, then launch. After enough server-observed violations and repeated timing evidence, subsequent matching requests receive 429 before the protected handler. Unrelated requests continue.
 3. Inspect source event IDs and the 30-second scoped rule. Clear it or watch it expire.
-4. Reset and run **Upstream outage**. Synchronized 503s are not attack evidence.
-5. Run **Identity churn** to see an honest failure case: replacing claimed caller IDs evades this first detector.
-6. Configure `VALIRON_API_KEY` in a gitignored `.env.local`, reset, select automatic enforcement, then **Run SDK-verified swarm**. Three local keys sign real Valiron challenges. Their caller names rotate but their verified identity stays stable, so the scoped blocks still match. This sends real identity requests to Valiron; it does not run sandbox tests or transact funds.
+4. Run **An outage, not an attack**. Synchronized 503s are not attack evidence.
+5. Run **The evasion gap** to see an honest failure case: replacing claimed caller IDs evades this first detector.
+6. Configure `VALIRON_API_KEY` in a gitignored `.env.local`, select automatic containment, then launch **Verified, not trusted**. Three local keys sign real Valiron challenges. Their caller names rotate but their verified identity stays stable, so the scoped blocks still match. This sends real identity requests to Valiron; it does not run sandbox tests or transact funds.
 
 Reset between scenarios for isolated results; otherwise they share the rolling 60-second window. Manual mode requires an explicit click on an abuse-supported group. Observe mode clears current blocks. Automatic mode issues rules on new admitted events, not merely on polling the dashboard.
 
