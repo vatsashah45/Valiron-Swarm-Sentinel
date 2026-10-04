@@ -5,22 +5,47 @@ import type { Study, Candidate } from "../src/research/types";
 type Report = {
   studies: Study[];
   candidates: Candidate[];
-  source: Study["source"];
+  source: NonNullable<Study["source"]>;
   disclosure: string;
 };
-const startHere = "birch-conflicting-measurements";
+const tour = [
+  {
+    id: "birch-conflicting-measurements",
+    label: "1 · Find disagreement",
+    description:
+      "Start with two incompatible reports only ten seconds apart. Inspect both source records.",
+  },
+  {
+    id: "relay-provenance-visibility",
+    label: "2 · Trace a handoff",
+    description:
+      "Follow explicit delegation, disputed visibility and correction. Account identity is not authorship.",
+  },
+  {
+    id: "hugging-face-published-incident",
+    label: "3 · Compare a real incident",
+    description:
+      "Review an attributed published attack. We did not discover it, and cannot claim the gate would have prevented it.",
+  },
+];
 export function Investigation({ onTryTrust }: { onTryTrust: () => void }) {
-  const initial = new URLSearchParams(location.search);
-  const [selected, setSelected] = useState(
-    () => initial.get("study") ?? startHere,
-  );
-  const [candidateId, setCandidateId] = useState(
-    () => initial.get("candidate") ?? "",
-  );
   const [report, setReport] = useState<Report>();
   const [error, setError] = useState("");
+  const [selected, setSelected] = useState(
+    () => new URLSearchParams(location.search).get("study") ?? tour[0].id,
+  );
+  const [candidateId, setCandidateId] = useState(
+    () => new URLSearchParams(location.search).get("candidate") ?? "",
+  );
   const [query, setQuery] = useState("");
+  const [minActors, setMinActors] = useState(3);
+  const [reviewFilter, setReviewFilter] = useState("all");
   const [notice, setNotice] = useState("");
+  const [workspace, setWorkspace] = useState<"cases" | "candidates">(() =>
+    new URLSearchParams(location.search).has("candidate")
+      ? "candidates"
+      : "cases",
+  );
   useEffect(() => {
     const controller = new AbortController();
     apiFetch("/api/research/investigations", {
@@ -35,220 +60,343 @@ export function Investigation({ onTryTrust }: { onTryTrust: () => void }) {
       })
       .catch(() => {
         if (!controller.signal.aborted)
-          setError("Could not load investigations. Please try again later.");
+          setError(
+            "Investigation data is unavailable. Check that the backend has the latest release.",
+          );
       });
     return () => controller.abort();
   }, []);
-  function choose(id: string, candidate = false) {
-    setNotice("");
-    setCandidateId(candidate ? id : "");
-    if (!candidate) setSelected(id);
-    const url = new URL(location.href);
-    url.search = "";
-    url.searchParams.set(candidate ? "candidate" : "study", id);
-    history.replaceState(null, "", url);
-  }
   const study =
     report?.studies.find((s) => s.id === selected) ?? report?.studies[0];
   const candidate = report?.candidates.find((c) => c.id === candidateId);
-  const reviewed = (c: Candidate) =>
-    report?.studies.find(
+  function selectStudy(id: string) {
+    setWorkspace("cases");
+    setSelected(id);
+    setCandidateId("");
+    setNotice("");
+    const url = new URL(location.href);
+    url.search = "";
+    url.searchParams.set("study", id);
+    history.replaceState(null, "", url);
+  }
+  function selectCandidate(id: string) {
+    setCandidateId(id);
+    const url = new URL(location.href);
+    url.search = "";
+    url.searchParams.set("candidate", id);
+    history.replaceState(null, "", url);
+  }
+  function reviewed(c: Candidate) {
+    return report?.studies.find(
       (s) =>
         s.source.kind === "dataset" &&
         s.artifact === c.artifact &&
         s.start.slice(0, 10) === c.day,
     );
-  const needle = query.toLowerCase().trim();
-  const studies =
-    report?.studies.filter((s) =>
-      [s.title, s.summary, s.artifact, s.start, ...s.actors.map((a) => a.name)]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle),
-    ) ?? [];
+  }
   const candidates =
     report?.candidates.filter(
       (c) =>
-        !reviewed(c) &&
+        c.actors.length >= minActors &&
+        (reviewFilter === "all" ||
+          (reviewFilter === "reviewed") === !!reviewed(c)) &&
         [c.artifact, c.day, ...c.actors.map((a) => a.name)]
           .join(" ")
           .toLowerCase()
-          .includes(needle),
+          .includes(query.toLowerCase().trim()),
     ) ?? [];
-  async function share() {
-    const url = new URL(location.href);
-    url.search = "";
-    url.searchParams.set(
-      candidate ? "candidate" : "study",
-      candidate?.id ?? study!.id,
-    );
-    try {
-      await navigator.clipboard.writeText(url.href);
-      setNotice("Link copied.");
-    } catch {
-      history.replaceState(null, "", url);
-      setNotice("Copy the URL from your address bar to share this view.");
-    }
-  }
   function download() {
-    if (!report || !study) return;
+    if (!study || !report) return;
     const data = {
       format: "swarmscope-investigation-v1",
       capturedAt: new Date().toISOString(),
       disclosure: report.disclosure,
       source: report.source,
-      study: candidate ? null : study,
-      candidates: candidate ? [candidate] : [],
+      study: workspace === "cases" ? study : null,
+      candidates:
+        workspace === "candidates"
+          ? candidate
+            ? [candidate]
+            : candidates
+          : [],
     };
     const url = URL.createObjectURL(
       new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
     );
     const a = document.createElement("a");
     a.href = url;
-    a.download = `swarmscope-${candidate?.id ?? study.id}.json`;
+    a.download = `swarmscope-${workspace === "cases" ? study.id : (candidate?.id ?? "discovery")}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setNotice("Evidence pack downloaded.");
+    setNotice(
+      "Evidence pack downloaded: source metadata, findings and uncertainties. No raw chat or credentials.",
+    );
+  }
+  async function share() {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      setNotice("Investigation link copied.");
+    } catch {
+      setNotice(
+        "Copy the current URL from your address bar to share this investigation.",
+      );
+    }
   }
   if (!report || !study)
-    return <p role="status">{error || "Loading investigations…"}</p>;
+    return (
+      <section className="panel research">
+        <p role="status">{error || "Loading source-backed investigations…"}</p>
+      </section>
+    );
   return (
-    <>
-      <div className="workspace-heading">
-        <div>
-          <h1>Investigate agent collaboration</h1>
-          <p>Choose a story. Follow the timeline. Check the evidence.</p>
-        </div>
-        <div className="compact-actions">
-          <button onClick={() => void share()}>Share</button>
-          <details>
-            <summary>More</summary>
-            <button onClick={download}>Export evidence pack</button>
-            <button onClick={onTryTrust}>Try API protection demo</button>
-          </details>
-        </div>
-      </div>
-      {notice && (
-        <p role="status" className="notice">
-          {notice}
+    <div className="investigation">
+      <section className="panel investigation-intro">
+        <span className="tiny-label">
+          DISCOVER → TRACE → CHALLENGE → EXPLAIN
+        </span>
+        <h2>A shared goal is not the whole story.</h2>
+        <p>
+          Find coordinated groups. Follow their handoffs. Catch conflicting
+          reports before treating agreement as truth.
         </p>
-      )}
-      <div className="investigation-layout">
-        <aside className="investigation-list" aria-label="Investigations">
-          <label htmlFor="investigation-search">Find an investigation</label>
-          <input
-            id="investigation-search"
-            placeholder="Search agent, topic or date…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <h2>Reviewed stories</h2>
-          {studies.map((s) => (
+        <div className="case-metrics">
+          <div>
+            <strong>{report.source.agentMessages?.toLocaleString()}</strong>
+            <span>agent messages searched</span>
+          </div>
+          <div>
+            <strong>{report.candidates.length}</strong>
+            <span>source-derived candidates</span>
+          </div>
+          <div>
+            <strong>
+              {report.studies.filter((s) => s.source.kind === "dataset").length}
+            </strong>
+            <span>reviewed dataset cases</span>
+          </div>
+          <div>
+            <strong>1</strong>
+            <span>published incident reference</span>
+          </div>
+        </div>
+        <div className="investigation-actions">
+          <button onClick={download}>Export evidence pack ↓</button>
+          <button onClick={() => void share()}>Copy investigation link</button>
+        </div>
+        {notice && <p role="status">{notice}</p>}
+      </section>
+      <section className="panel investigation-tour">
+        <h3>The three-minute walkthrough</h3>
+        <div className="tour-steps">
+          {tour.map((t) => (
             <button
-              key={s.id}
-              className={
-                !candidateId && study.id === s.id
-                  ? "story-item active"
-                  : "story-item"
-              }
-              aria-pressed={!candidateId && study.id === s.id}
-              onClick={() => choose(s.id)}
+              key={t.id}
+              className={selected === t.id ? "active" : ""}
+              onClick={() => selectStudy(t.id)}
             >
-              <small>
-                {s.id === startHere ? "Start here · " : ""}
-                {s.source.kind === "report"
-                  ? "Published incident"
-                  : "Reviewed case"}
-              </small>
-              <strong>{s.title}</strong>
-              <span>
-                {s.actors.length} participants · {s.start.slice(0, 10)}
-              </span>
+              <strong>{t.label}</strong>
+              <small>{t.description}</small>
             </button>
           ))}
-          <details
-            className="other-groups"
-            open={needle.length > 0 || !!candidateId}
-          >
-            <summary>Other groups ({candidates.length})</summary>
-            <p>Shared activity, not yet reviewed. Not an attack verdict.</p>
+          <button onClick={onTryTrust}>
+            <strong>4 · Test API access</strong>
+            <small>
+              Switch to the controlled Valiron lab. Verification and enforcement
+              are real; traffic behavior is scripted.
+            </small>
+          </button>
+        </div>
+      </section>
+      <div className="research-tabs">
+        <button
+          aria-pressed={workspace === "cases"}
+          onClick={() => setWorkspace("cases")}
+        >
+          Reviewed investigations · {report.studies.length}
+        </button>
+        <button
+          aria-pressed={workspace === "candidates"}
+          onClick={() => setWorkspace("candidates")}
+        >
+          Discover groups · {report.candidates.length}
+        </button>
+      </div>
+      {workspace === "candidates" && (
+        <section className="panel candidate-explorer">
+          <div className="section-head">
+            <div>
+              <span className="tiny-label">SOURCE-DERIVED DISCOVERY</span>
+              <h3>Explore all {report.candidates.length} candidate groups</h3>
+            </div>
+            <span className="pill">{candidates.length} shown</span>
+          </div>
+          <p className="muted">
+            At least three actors and six same-day references to one artifact.
+            These are candidates, not attack verdicts. Metadata links to
+            reviewed cases where available.
+          </p>
+          <div className="candidate-filters">
+            <label>
+              Find artifact, actor or date
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Try issues/66, GPT-5.2, or 2026-03"
+              />
+            </label>
+            <label>
+              Minimum actors
+              <select
+                value={minActors}
+                onChange={(e) => setMinActors(Number(e.target.value))}
+              >
+                {[3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    {n}+
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Review status
+              <select
+                value={reviewFilter}
+                onChange={(e) => setReviewFilter(e.target.value)}
+              >
+                <option value="all">All candidates</option>
+                <option value="reviewed">Reviewed cases</option>
+                <option value="unreviewed">Not yet reviewed</option>
+              </select>
+            </label>
+          </div>
+          <div className="candidate-list">
             {candidates.map((c) => (
               <button
                 key={c.id}
-                className={
-                  candidateId === c.id ? "story-item active" : "story-item"
-                }
-                aria-pressed={candidateId === c.id}
-                onClick={() => choose(c.id, true)}
+                className={candidateId === c.id ? "active" : ""}
+                onClick={() => selectCandidate(c.id)}
               >
-                <small>Needs review · {c.day}</small>
-                <strong>{c.artifact.replace("https://", "")}</strong>
                 <span>
-                  {c.actors.length} agents · {c.mentions} references
+                  {c.day} · {c.actors.length} actors · {c.mentions} references
                 </span>
+                <strong>{c.artifact.replace("https://", "")}</strong>
+                <small>
+                  {reviewed(c)
+                    ? "Reviewed case available"
+                    : "Metadata only · needs review"}
+                </small>
               </button>
             ))}
-          </details>
-          {!studies.length && !candidates.length && (
-            <p role="status">No matching investigations. Try another search.</p>
+          </div>
+          {!candidates.length && (
+            <p role="status">No candidates match these filters.</p>
           )}
-        </aside>
-        {candidate ? (
-          <section className="story-content">
-            <small>UNREVIEWED GROUP</small>
-            <h2>
-              {candidate.actors.length} agents reference the same resource
-            </h2>
-            <p>
-              This group was found through shared links. Its activity has not
-              been reviewed, and does not establish malicious intent.
-            </p>
-            <a href={candidate.artifact} target="_blank" rel="noreferrer">
-              Open shared resource ↗
-            </a>
-            <h3>Who is involved</h3>
-            <div className="actor-chips">
-              {candidate.actors.map((a) => (
-                <span key={a.id}>{a.name}</span>
+          {candidate && (
+            <section className="candidate-detail">
+              <h3>{candidate.actors.length} actors converge on one artifact</h3>
+              <a href={candidate.artifact} target="_blank" rel="noreferrer">
+                Open shared artifact ↗
+              </a>
+              <p>
+                {candidate.first} → {candidate.last} · UTC
+              </p>
+              <div className="candidate-actors">
+                {candidate.actors.map((a) => (
+                  <div key={a.id}>
+                    <strong>{a.name}</strong>
+                    <small>
+                      {candidate.records.filter((r) => r.actor === a.id).length}{" "}
+                      references · first observed{" "}
+                      {candidate.records.find((r) => r.actor === a.id)?.at}
+                    </small>
+                  </div>
+                ))}
+              </div>
+              <p className="muted">
+                First observed means first matching artifact reference in this
+                bounded search—not who originated the idea. Actor → artifact
+                links are shared references, not causal edges.
+              </p>
+              {reviewed(candidate) && (
+                <button onClick={() => selectStudy(reviewed(candidate)!.id)}>
+                  Open reviewed findings ↗
+                </button>
+              )}
+              <details>
+                <summary>
+                  Inspect all {candidate.records.length} source record
+                  references
+                </summary>
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>UTC time</th>
+                        <th>Dataset actor</th>
+                        <th>Source record</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {candidate.records.map((r) => (
+                        <tr key={r.id}>
+                          <td>{r.at}</td>
+                          <td>
+                            {
+                              candidate.actors.find((a) => a.id === r.actor)
+                                ?.name
+                            }
+                          </td>
+                          <td>
+                            <code>{r.id}</code>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            </section>
+          )}
+        </section>
+      )}
+      {workspace === "cases" && (
+        <>
+          <div className="case-picker">
+            <label htmlFor="reviewed-study">Open an investigation</label>
+            <select
+              id="reviewed-study"
+              value={study.id}
+              onChange={(e) => selectStudy(e.target.value)}
+            >
+              {report.studies.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title}
+                  {s.source.kind === "report" ? " · published report" : ""}
+                </option>
               ))}
-            </div>
-            <h3>Observed references</h3>
-            <p>
-              {candidate.first} → {candidate.last} (UTC)
-            </p>
-            <details>
-              <summary>
-                View {candidate.records.length} record references
-              </summary>
-              {candidate.records.map((r) => (
-                <p key={r.id}>
-                  {r.at} ·{" "}
-                  {candidate.actors.find((a) => a.id === r.actor)?.name}
-                  <br />
-                  <code>{r.id}</code>
-                </p>
-              ))}
-            </details>
-          </section>
-        ) : (
-          <StudyViewer key={study.id} study={study} />
-        )}
-      </div>
-      <footer className="research-footer">
-        <a href={report.source.url} target="_blank" rel="noreferrer">
-          Source: AI Digest / AI Village ↗
-        </a>
-        <details>
-          <summary>About this research</summary>
-          <p>{report.disclosure}</p>
-          <p>
-            Groups are discovered through shared artifact references, not all
-            conversations. Reviewed findings are analyst interpretations; no
-            detection accuracy benchmark is claimed. Historical actors are not
-            blocked or submitted to Valiron.
-          </p>
-        </details>
-      </footer>
-    </>
+            </select>
+          </div>
+          <StudyViewer key={study.id} study={study} onTryTrust={onTryTrust} />
+        </>
+      )}
+      <section className="panel research">
+        <h3>Discovery boundaries</h3>
+        <p>
+          Only allowlisted artifact references in the first 8,000 characters of
+          each message are searched. At most 16 artifacts per message, 50,000
+          buckets and 200 records per bucket are considered. Related
+          conversations without these references can be missed. No labeled
+          precision/recall benchmark is claimed.
+        </p>
+        <p>{report.disclosure}</p>
+        <p>
+          <a href={report.source.url} target="_blank" rel="noreferrer">
+            AI Digest / AI Village archive ↗
+          </a>{" "}
+          · snapshot actor names are metadata, not external identity
+          verification.
+        </p>
+      </section>
+    </div>
   );
 }
